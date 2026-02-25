@@ -1,0 +1,29 @@
+[gd_scene load_steps=6 format=3 uid="uid://d4hn7us6dv7ie"]
+
+[ext_resource type="Texture2D" uid="uid://ivh3rdwmym85" path="res://Art/restroom-1.png" id="1_bi0rs"]
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_wxw7x"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_rpajm"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_8kc6g"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jhrjm"]
+radius = 65.2763
+
+[node name="Restroom" type="Area2D" groups=["smart_object"]]
+script = ExtResource("1_wxw7x")
+type = "restroom"
+metadata/_edit_group_ = true
+
+[node name="Halo" parent="." instance=ExtResource("2_rpajm")]
+position = Vector2(1.50001, 1.5)
+scale = Vector2(2.41667, 2.31667)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_bi0rs")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("CircleShape2D_jhrjm")
+
+[node name="Label" parent="." instance=ExtResource("4_8kc6g")]
+offset_top = 75.0
+offset_bottom = 102.0

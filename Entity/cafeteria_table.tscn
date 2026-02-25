@@ -1,0 +1,30 @@
+[gd_scene load_steps=6 format=3 uid="uid://cbyic45ebr84u"]
+
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_1sv6w"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_uwlqu"]
+[ext_resource type="Texture2D" uid="uid://df38oxqxq7ms1" path="res://Art/cafeteria-table-1.png" id="2_y0sru"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_pu854"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_uwlqu"]
+radius = 60.075
+
+[node name="CafeteriaTable" type="Area2D" groups=["smart_object"]]
+script = ExtResource("1_1sv6w")
+type = "cafeteria_table"
+metadata/_custom_type_script = "uid://cu3ixr7n8og50"
+metadata/_edit_group_ = true
+
+[node name="Halo" parent="." instance=ExtResource("2_uwlqu")]
+position = Vector2(0.500004, 3)
+scale = Vector2(2.35, 2.06667)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_y0sru")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("CircleShape2D_uwlqu")
+
+[node name="Label" parent="." instance=ExtResource("4_pu854")]
+offset_top = 68.0
+offset_bottom = 94.0

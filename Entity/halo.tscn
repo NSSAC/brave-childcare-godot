@@ -1,0 +1,54 @@
+[gd_scene load_steps=7 format=3 uid="uid://n3plf50yn4xx"]
+
+[ext_resource type="Texture2D" uid="uid://c687gi5efdamh" path="res://Art/halo-blue.png" id="1_cg7ws"]
+[ext_resource type="Texture2D" uid="uid://djxyo8wugxjqt" path="res://Art/halo-pink.png" id="2_6lwg8"]
+[ext_resource type="Texture2D" uid="uid://hvittdxhewut" path="res://Art/halo-clear.png" id="2_6ml7o"]
+[ext_resource type="Texture2D" uid="uid://dl7eclh02m0i4" path="res://Art/halo-red.png" id="3_6ml7o"]
+[ext_resource type="Texture2D" uid="uid://b0q4hvk4mva4h" path="res://Art/halo-yellow.png" id="4_62e37"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_i72gj"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_cg7ws")
+}],
+"loop": true,
+"name": &"blue",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_6ml7o")
+}],
+"loop": true,
+"name": &"clear",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_6lwg8")
+}],
+"loop": true,
+"name": &"pink",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3_6ml7o")
+}],
+"loop": true,
+"name": &"red",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("4_62e37")
+}],
+"loop": true,
+"name": &"yellow",
+"speed": 5.0
+}]
+
+[node name="Halo" type="AnimatedSprite2D"]
+sprite_frames = SubResource("SpriteFrames_i72gj")
+animation = &"clear"

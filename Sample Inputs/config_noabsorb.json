@@ -1,0 +1,20 @@
+{
+	"person_file": "persons_nopoison.json",
+	"schedule_file": "schedule_limitedCR_v4.json",
+	"output_file": "output_noabsorb.json",
+
+	"sim_speed_scale": 1.0,
+	"save_every_s": 5,
+
+	"prob_poison_xfer": 0.33,
+	"person_to_obj_coeff": 0.3,
+	"obj_to_person_coeff": 0.7,
+	"max_person_gain": 100.0,
+	"initial_poison":  500.0,
+
+	"abs_tick_duration_m": 10.0,
+	"abs_fast_poison_threshold": 5,
+	"abs_fast_rate_per_h": 0,
+	"abs_slow_frac_rate_per_h": 0.0,
+	"abs_obj_absorption_frac": 0.0
+}

@@ -1,0 +1,32 @@
+[gd_scene load_steps=6 format=3 uid="uid://c5wj3u24b0gy8"]
+
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_vpt6r"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_vdgf4"]
+[ext_resource type="Texture2D" uid="uid://bivotrgearl7p" path="res://Art/cubicle-2.png" id="2_vpt6r"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_pvqae"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ciibl"]
+radius = 32.0624
+
+[node name="Cubicle" type="Area2D" groups=["smart_object"]]
+script = ExtResource("1_vpt6r")
+type = "cubicle"
+metadata/_custom_type_script = "uid://cu3ixr7n8og50"
+metadata/_edit_group_ = true
+
+[node name="Halo" parent="." instance=ExtResource("2_vdgf4")]
+position = Vector2(0.999999, 2)
+scale = Vector2(1.33333, 1.13333)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_vpt6r")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("CircleShape2D_ciibl")
+
+[node name="Label" parent="." instance=ExtResource("4_pvqae")]
+offset_left = -44.0
+offset_top = 37.0
+offset_bottom = 60.0

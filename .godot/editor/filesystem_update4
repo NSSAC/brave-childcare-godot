@@ -1,0 +1,6 @@
+res://Entity/generic_person.tscn
+res://Entity/main.tscn
+res://Map/map_level_1.tscn
+res://Entity/person.tscn
+res://Entity/restroom.tscn
+res://Entity/Toddler.tscn

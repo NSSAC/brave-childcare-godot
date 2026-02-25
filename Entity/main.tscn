@@ -1,0 +1,123 @@
+[gd_scene load_steps=8 format=3 uid="uid://cn716rk61mj6n"]
+
+[ext_resource type="Script" uid="uid://ti3hkbtijubp" path="res://Entity/main.gd" id="1_7eq1f"]
+[ext_resource type="PackedScene" uid="uid://b48yck4fdkxok" path="res://Map/map_level_1.tscn" id="2_lhxn6"]
+[ext_resource type="PackedScene" uid="uid://x8gauv0baxmj" path="res://Entity/generic_person.tscn" id="2_u08er"]
+[ext_resource type="PackedScene" uid="uid://bju84ipbimvyb" path="res://Map/gym_1.tscn" id="4_4d60a"]
+[ext_resource type="PackedScene" uid="uid://7tl2xjl0xssm" path="res://Map/cafeteria.tscn" id="5_2aj6k"]
+[ext_resource type="Texture2D" uid="uid://bqidwmi8wxorm" path="res://Art/ChildcareCenter_RoomScene_SplashScreen.png" id="6_u08er"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_7eq1f"]
+font_size = 150
+shadow_size = 5
+shadow_color = Color(0, 0, 0, 0.772549)
+
+[node name="Main" type="Node"]
+script = ExtResource("1_7eq1f")
+generic_person_scene = ExtResource("2_u08er")
+
+[node name="Map" type="Node2D" parent="."]
+unique_name_in_owner = true
+visible = false
+
+[node name="Camera2D" type="Camera2D" parent="Map"]
+unique_name_in_owner = true
+position = Vector2(8, 214)
+offset = Vector2(0, 174)
+zoom = Vector2(0.2, 0.2)
+
+[node name="Level1" parent="Map" instance=ExtResource("2_lhxn6")]
+
+[node name="Gym1" parent="Map" instance=ExtResource("4_4d60a")]
+position = Vector2(378, 2320)
+
+[node name="Cafeteria1" parent="Map" instance=ExtResource("5_2aj6k")]
+position = Vector2(-1396, 2185)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="Map"]
+
+[node name="CurrentTimeLabel" type="Label" parent="Map/CanvasLayer"]
+unique_name_in_owner = true
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -134.0
+offset_top = -23.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 50
+text = "Current Time: 0.0"
+
+[node name="TitleScreen" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+
+[node name="ConfigFileDialog" type="FileDialog" parent="TitleScreen"]
+unique_name_in_owner = true
+title = "Open a File"
+initial_position = 2
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+
+[node name="ObjectFileDialog" type="FileDialog" parent="TitleScreen"]
+unique_name_in_owner = true
+title = "Select object file"
+initial_position = 2
+access = 2
+
+[node name="TextureRect" type="TextureRect" parent="TitleScreen"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("6_u08er")
+expand_mode = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TitleScreen"]
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -129.0
+offset_top = 62.0
+offset_right = 129.0
+offset_bottom = -43.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+text = "BRAVE
+Childcare Simulator
+v 0.1"
+label_settings = SubResource("LabelSettings_7eq1f")
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+size_flags_stretch_ratio = 3.0
+alignment = 1
+
+[node name="SaveObjectButton" type="Button" parent="TitleScreen/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+text = "Save Object File
+"
+
+[node name="StartSimulationButton" type="Button" parent="TitleScreen/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Start Simulation"
+
+[node name="SaveTimer" type="Timer" parent="."]
+unique_name_in_owner = true

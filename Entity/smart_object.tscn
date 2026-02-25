@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://kfr5mbd57aby"]
+
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_usrry"]
+
+[node name="SmartObject" type="Area2D"]
+collision_mask = 2
+script = ExtResource("1_usrry")

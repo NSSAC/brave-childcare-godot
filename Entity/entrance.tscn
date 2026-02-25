@@ -1,0 +1,31 @@
+[gd_scene load_steps=6 format=3 uid="uid://4bnarddnod5i"]
+
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_6lmrf"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_8irrq"]
+[ext_resource type="Texture2D" uid="uid://o70prei5v0qi" path="res://Art/entrance-1.png" id="2_dnx46"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_da0ry"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gwofi"]
+size = Vector2(63, 91)
+
+[node name="Entrance" type="Area2D" groups=["entrance", "smart_object"]]
+script = ExtResource("1_6lmrf")
+type = "entrance"
+metadata/_custom_type_script = "uid://cu3ixr7n8og50"
+metadata/_edit_group_ = true
+
+[node name="Halo" parent="." instance=ExtResource("2_8irrq")]
+position = Vector2(-1.5, 4.5)
+scale = Vector2(1.75, 2.58333)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_dnx46")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+position = Vector2(0.5, 13.5)
+shape = SubResource("RectangleShape2D_gwofi")
+
+[node name="Label" parent="." instance=ExtResource("4_da0ry")]
+offset_top = 85.0
+offset_bottom = 108.0

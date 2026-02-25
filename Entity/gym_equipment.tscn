@@ -1,0 +1,30 @@
+[gd_scene load_steps=6 format=3 uid="uid://uivb8hhn3bn8"]
+
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_jdbls"]
+[ext_resource type="Texture2D" uid="uid://oc2ym4btss7i" path="res://Art/gym-1.png" id="2_f8v3y"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_ntpqg"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_7epxd"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ntpqg"]
+radius = 67.0
+
+[node name="GymEquipment" type="Area2D" groups=["smart_object"]]
+script = ExtResource("1_jdbls")
+type = "gym_equipment"
+metadata/_custom_type_script = "uid://cu3ixr7n8og50"
+metadata/_edit_group_ = true
+
+[node name="Halo" parent="." instance=ExtResource("2_ntpqg")]
+position = Vector2(-8, 4)
+scale = Vector2(2.6, 2.43333)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_f8v3y")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("CircleShape2D_ntpqg")
+
+[node name="Label" parent="." instance=ExtResource("4_7epxd")]
+offset_top = 80.0
+offset_bottom = 108.0

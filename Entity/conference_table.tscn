@@ -1,0 +1,30 @@
+[gd_scene load_steps=6 format=3 uid="uid://i8f8afnge73j"]
+
+[ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_n48yv"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_fiba6"]
+[ext_resource type="Texture2D" uid="uid://y6rstn83uo6b" path="res://Art/conf-table-2.png" id="2_n48yv"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_81bjv"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_gvlum"]
+radius = 63.6396
+
+[node name="ConferenceTable" type="Area2D" groups=["smart_object"]]
+script = ExtResource("1_n48yv")
+type = "conference_table"
+metadata/_custom_type_script = "uid://cu3ixr7n8og50"
+metadata/_edit_group_ = true
+
+[node name="Halo" parent="." instance=ExtResource("2_fiba6")]
+position = Vector2(-4, -1.5)
+scale = Vector2(2.46667, 2.25)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_n48yv")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("CircleShape2D_gvlum")
+
+[node name="Label" parent="." instance=ExtResource("4_81bjv")]
+offset_top = 72.0
+offset_bottom = 99.0
