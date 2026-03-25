@@ -1,10 +1,7 @@
-[gd_scene load_steps=8 format=3 uid="uid://cn716rk61mj6n"]
+[gd_scene load_steps=5 format=3 uid="uid://cn716rk61mj6n"]
 
 [ext_resource type="Script" uid="uid://ti3hkbtijubp" path="res://Entity/main.gd" id="1_7eq1f"]
 [ext_resource type="PackedScene" uid="uid://b48yck4fdkxok" path="res://Map/map_level_1.tscn" id="2_lhxn6"]
-[ext_resource type="PackedScene" uid="uid://x8gauv0baxmj" path="res://Entity/generic_person.tscn" id="2_u08er"]
-[ext_resource type="PackedScene" uid="uid://bju84ipbimvyb" path="res://Map/gym_1.tscn" id="4_4d60a"]
-[ext_resource type="PackedScene" uid="uid://7tl2xjl0xssm" path="res://Map/cafeteria.tscn" id="5_2aj6k"]
 [ext_resource type="Texture2D" uid="uid://bqidwmi8wxorm" path="res://Art/ChildcareCenter_RoomScene_SplashScreen.png" id="6_u08er"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_7eq1f"]
@@ -14,7 +11,6 @@ shadow_color = Color(0, 0, 0, 0.772549)
 
 [node name="Main" type="Node"]
 script = ExtResource("1_7eq1f")
-generic_person_scene = ExtResource("2_u08er")
 
 [node name="Map" type="Node2D" parent="."]
 unique_name_in_owner = true
@@ -27,12 +23,6 @@ offset = Vector2(0, 174)
 zoom = Vector2(0.2, 0.2)
 
 [node name="Level1" parent="Map" instance=ExtResource("2_lhxn6")]
-
-[node name="Gym1" parent="Map" instance=ExtResource("4_4d60a")]
-position = Vector2(378, 2320)
-
-[node name="Cafeteria1" parent="Map" instance=ExtResource("5_2aj6k")]
-position = Vector2(-1396, 2185)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="Map"]
 

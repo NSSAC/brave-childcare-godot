@@ -1,0 +1,32 @@
+[gd_scene load_steps=6 format=3 uid="uid://xldaj3nuif1q"]
+
+[ext_resource type="Script" uid="uid://c1yg2thtd0yu4" path="res://Entity/person.gd" id="1_wchyj"]
+[ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_wdmmh"]
+[ext_resource type="Texture2D" uid="uid://cqa1g2ccnja1y" path="res://Art/Caregiver2.png" id="3_wchyj"]
+[ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_ce8pf"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ipytn"]
+radius = 13.0
+height = 44.0
+
+[node name="GenericPerson" type="CharacterBody2D"]
+script = ExtResource("1_wchyj")
+metadata/_custom_type_script = "uid://c1yg2thtd0yu4"
+
+[node name="Halo" parent="." instance=ExtResource("2_wdmmh")]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("3_wchyj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("CapsuleShape2D_ipytn")
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+debug_use_custom = true
+debug_path_custom_color = Color(1, 0.18, 0.18, 0.352941)
+
+[node name="Label" parent="." instance=ExtResource("4_ce8pf")]
+offset_left = -49.0
+offset_top = -53.0
+offset_bottom = -30.0
