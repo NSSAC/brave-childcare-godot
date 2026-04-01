@@ -1,0 +1,42 @@
+[
+  {
+    "room_id": "PreschoolRoom",
+    "start_time": 0,
+    "ach": 2.0
+  },
+  {
+    "room_id": "OlderToddlerRoom",
+    "start_time": 32400,
+    "ach": 6.0
+  },
+  {
+    "room_id": "YoungerToddlerRoom",
+    "start_time": 32400,
+    "ach": 3.0
+  },
+  {
+    "room_id": "InfantRoom",
+    "start_time": 32400,
+    "ach": 3.0
+  },
+  {
+      "room_id": "CommonRoom",
+      "start_time": 32400,
+      "ach": 2.0
+  },
+  {
+      "room_id": "Kitchen_Office",
+      "start_time": 32400,
+      "ach": 6.0
+  },
+  {
+      "room_id": "Hallway",
+      "start_time": 32400,
+      "ach": 3.0
+  },
+  {
+      "room_id": "Entrance",
+      "start_time": 32400,
+      "ach": 3.0
+  }
+]

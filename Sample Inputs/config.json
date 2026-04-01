@@ -1,10 +1,14 @@
 {
 	"person_file": "persons_nopoison.json",
 	"schedule_file": "schedule_limitedCR_v4.json",
-	"output_file": "output_absorb_Sept11.json",
+	"person_output_file": "output_absorb_Sept11_people.json",
+	"poison_output_file": "output_absorb_Sept11_poison.json",
+	"room_output_file": "output_absorb_Sept11_rooms.json",
 
 	"sim_speed_scale": 1.0,
 	"save_every_s": 5,
+	"room_ach_budget_start": 100.0,
+	"room_ach_cost_per_ach_hour": 5.0,
 
 	"prob_poison_xfer": 0.33,
 	"person_to_obj_coeff": 0.3,

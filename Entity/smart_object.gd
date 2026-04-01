@@ -35,7 +35,7 @@ func save_events():
 			"pid_poison_end": output_pid_poison_end[i],
 		}
 		var obj_str = JSON.stringify(obj)
-		Global.save_file.store_line(obj_str)
+		Global.poison_save_file.store_line(obj_str)
 	
 	output_pid.clear()
 	output_time.clear()
@@ -51,22 +51,14 @@ func _ready() -> void:
 	# Objects react when people collide with them
 	collision_layer = 0b10 # is on layer two 
 	collision_mask = 0b01
+	halo.hide()
+	label.text = ""
+	label.hide()
 	
 	body_entered.connect(_on_body_entered)
 	
 func _process(_delta: float) -> void:
-	label.text = "☣ %0.1f" % [poison]
-	
-	if poison < 1.0:
-		halo.play("clear")
-	elif poison < 5.0:
-		halo.play("blue")
-	elif poison < 15.0:
-		halo.play("yellow")
-	elif poison < 30.0:
-		halo.play("red")
-	else:
-		halo.play("pink")
+	pass
 	
 func _on_body_entered(body: Node2D):
 	if body is Person:

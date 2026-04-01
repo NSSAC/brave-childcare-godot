@@ -4,15 +4,18 @@ class_name GlobalDataManager extends Node
 # 1.0 is maximum safe speed
 var sim_speed_scale: float = 1.0
 
+const WALKING_DISTANCE_PER_TICK_BASE: float = 16.0
+const SECONDS_PER_PHYSICS_TICK_BASE: float = 1.0 / 4.5
+
 # In our sim: 16 pixels = 1 feet
 # We are using 16px x 16px tiles
 # So the next point to travel is 16px (horizontal / vertical) or 22.6px (diagonal) away
 # We want walking distance per tick to be less than these
-var walking_distance_per_tick: float = 16 * sim_speed_scale # pixels
+var walking_distance_per_tick: float = WALKING_DISTANCE_PER_TICK_BASE * sim_speed_scale # pixels
 
 # typical human walking speed (according to wikipedia)
 # between 3.6 ft/s and 5.4 ft/s ~ 4.5 ft/s
-var seconds_per_physics_tick: float = 1.0 / 4.5 * sim_speed_scale
+var seconds_per_physics_tick: float = SECONDS_PER_PHYSICS_TICK_BASE * sim_speed_scale
 
 # Simulation ends this many seconds after the final activity start time.
 var max_activity_duration: float = 3600.0
@@ -22,9 +25,14 @@ var sim_clock_s: float = 0.0
 var runtime_start_s: float = 0.0 # Time when the simulation starts, e.g. 8 * 3600 = 8am
 var runtime_end_s: float = 0.0 # Time when the simulation ends, e.g. 17 * 3600 = 5pm
 var prev_abs_event_s: float = 0.0 # Time since last absorption event
+var is_simulation_active: bool = false
+var is_simulation_paused: bool = false
 
 func current_time_s() -> float:
 	return sim_clock_s
+
+func can_advance_simulation() -> bool:
+	return is_simulation_active and not is_simulation_paused
 
 ##  Poison Exchange
 var prob_poison_xfer: float = 0.33
@@ -80,7 +88,21 @@ var initial_poison: float = 500.0
 
 var all_objects: Dictionary[String, SmartObject] = {}
 var all_persons: Dictionary[String, Person] = {}
+var all_rooms: Dictionary[String, Room] = {}
+
+var room_ach_budget_start: float = 100.0
+var room_ach_budget_remaining: float = 100.0
+var room_ach_cost_per_ach_hour: float = 5.0
 
 var save_every_s: int = 5
-var save_file: FileAccess
-var output_file_path: String
+var person_save_file: FileAccess
+var person_output_file_path: String
+var poison_save_file: FileAccess
+var poison_output_file_path: String
+var room_save_file: FileAccess
+var room_output_file_path: String
+
+func apply_sim_speed_scale(scale: float) -> void:
+	sim_speed_scale = scale
+	walking_distance_per_tick = WALKING_DISTANCE_PER_TICK_BASE * sim_speed_scale
+	seconds_per_physics_tick = SECONDS_PER_PHYSICS_TICK_BASE * sim_speed_scale

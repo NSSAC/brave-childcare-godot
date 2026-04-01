@@ -27,6 +27,7 @@ debug_use_custom = true
 debug_path_custom_color = Color(1, 0.18, 0.18, 0.352941)
 
 [node name="Label" parent="." instance=ExtResource("4_j7cyq")]
-offset_left = -49.0
-offset_top = -53.0
-offset_bottom = -30.0
+offset_left = -50.0
+offset_top = -80.0
+offset_right = 49.0
+offset_bottom = -57.0

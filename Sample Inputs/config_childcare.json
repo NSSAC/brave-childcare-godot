@@ -1,10 +1,15 @@
 {
 	"person_file": "persons_childcare_pop.json",
 	"schedule_file": "schedule_grouped_childcare.json",
-	"output_file": "output_childcare_test1.json",
+	"room_ach_file": "room_ach_schedule.json",
+	"person_output_file": "output_childcare_people_movement.json",
+	"poison_output_file": "output_childcare_poison_exchange.json",
+	"room_output_file": "output_childcare_rooms.json",
 
-	"sim_speed_scale": 0.5,
+	"sim_speed_scale": 1.0,
 	"save_every_s": 5,
+	"room_ach_budget_start": 100.0,
+	"room_ach_cost_per_ach_hour": 0.50,
 
 	"prob_poison_xfer": 0.33,
 	"person_to_obj_coeff": 0.3,
