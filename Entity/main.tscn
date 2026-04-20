@@ -1,8 +1,20 @@
-[gd_scene load_steps=5 format=3 uid="uid://cn716rk61mj6n"]
+[gd_scene load_steps=6 format=3 uid="uid://cn716rk61mj6n"]
 
 [ext_resource type="Script" uid="uid://ti3hkbtijubp" path="res://Entity/main.gd" id="1_7eq1f"]
 [ext_resource type="PackedScene" uid="uid://b48yck4fdkxok" path="res://Map/map_level_1.tscn" id="2_lhxn6"]
 [ext_resource type="Texture2D" uid="uid://bqidwmi8wxorm" path="res://Art/ChildcareCenter_RoomScene_SplashScreen.png" id="6_u08er"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_end_sim_normal"]
+bg_color = Color(0.45, 0.27, 0.27, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.25, 0.15, 0.15, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [sub_resource type="LabelSettings" id="LabelSettings_7eq1f"]
 font_size = 150
@@ -37,6 +49,24 @@ offset_bottom = 69.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 50
 text = "Current Time: 0.0"
+
+[node name="EndSimulationButton" type="Button" parent="Map/CanvasLayer"]
+unique_name_in_owner = true
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -500.0
+offset_top = -136.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 0.95, 0.95, 1)
+theme_override_font_sizes/font_size = 41
+theme_override_styles/normal = SubResource("StyleBoxFlat_end_sim_normal")
+text = "End Simulation"
 
 [node name="RoomPanel" type="PanelContainer" parent="Map/CanvasLayer"]
 unique_name_in_owner = true
@@ -102,9 +132,9 @@ anchors_preset = 13
 anchor_left = 0.5
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -129.0
+offset_left = -380.0
 offset_top = 62.0
-offset_right = 129.0
+offset_right = 380.0
 offset_bottom = -43.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -122,23 +152,63 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
+[node name="NameRow" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
 layout_mode = 2
-size_flags_stretch_ratio = 3.0
 alignment = 1
 
-[node name="SaveObjectButton" type="Button" parent="TitleScreen/VBoxContainer/HBoxContainer"]
+[node name="NameLabel" type="Label" parent="TitleScreen/VBoxContainer/NameRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "Name:"
+vertical_alignment = 1
+
+[node name="PlayerNameInput" type="LineEdit" parent="TitleScreen/VBoxContainer/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 48
+placeholder_text = "Enter your name"
+
+[node name="StartSimulationDefaultButton" type="Button" parent="TitleScreen/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+theme_override_font_sizes/font_size = 56
+text = "Start Simulation"
+
+[node name="SecondaryButtonRow" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+
+[node name="SaveObjectButton" type="Button" parent="TitleScreen/VBoxContainer/SecondaryButtonRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
-text = "Save Object File
-"
+text = "Save Object File"
 
-[node name="StartSimulationButton" type="Button" parent="TitleScreen/VBoxContainer/HBoxContainer"]
+[node name="StartSimulationButton" type="Button" parent="TitleScreen/VBoxContainer/SecondaryButtonRow"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Start Simulation"
+text = "Start simulation with new settings"
+
+[node name="LastRunSummaryPanel" type="PanelContainer" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LastRunSummaryMargin" type="MarginContainer" parent="TitleScreen/VBoxContainer/LastRunSummaryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="LastRunSummaryLabel" type="Label" parent="TitleScreen/VBoxContainer/LastRunSummaryPanel/LastRunSummaryMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Last Run: none yet"
+autowrap_mode = 3
 
 [node name="SaveTimer" type="Timer" parent="."]
 unique_name_in_owner = true

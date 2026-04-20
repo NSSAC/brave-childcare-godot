@@ -16,6 +16,7 @@ metadata/_custom_type_script = "uid://c1yg2thtd0yu4"
 [node name="Halo" parent="." instance=ExtResource("2_uapku")]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(1.2, 1.2)
 texture = ExtResource("3_fuxeg")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

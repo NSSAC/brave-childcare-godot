@@ -5,13 +5,18 @@ extends Node
 
 @onready var save_object_button: Button = %SaveObjectButton
 @onready var start_simulation_button: Button = %StartSimulationButton
+@onready var start_simulation_default_button: Button = %StartSimulationDefaultButton
+@onready var player_name_input: LineEdit = %PlayerNameInput
 
 @onready var title_screen: CanvasLayer = %TitleScreen
 @onready var map: Node2D = %Map
 @onready var camera_2d: Camera2D = %Camera2D
 @onready var current_time_label: Label = %CurrentTimeLabel
+@onready var end_simulation_button: Button = %EndSimulationButton
+@onready var last_run_summary_label: Label = %LastRunSummaryLabel
 @onready var room_panel: PanelContainer = %RoomPanel
 @onready var room_panel_text: RichTextLabel = %RoomPanelText
+@onready var room_panel_margin: MarginContainer = $Map/CanvasLayer/RoomPanel/MarginContainer
 
 @export var generic_person_scene: PackedScene = preload("res://Entity/generic_person.tscn")
 @export var infant_boy_scene: PackedScene = preload("res://Entity/Infant_Boy.tscn")
@@ -24,31 +29,156 @@ extends Node
 @export var careprovider_scene_2: PackedScene = preload("res://Entity/CareProvider2.tscn")
 @onready var save_timer: Timer = %SaveTimer
 
+@export var default_config_path: String = "res://Sample Inputs/config_childcare.json"
 @export var room_alert_threshold_vl: float = 400.0
 @export var room_alert_check_interval_s: float = 45.0 * 60.0
 @export var room_panel_refresh_interval_s: float = 0.5
 @export var sim_speed_scale_step: float = 0.2
-@export var sim_speed_scale_min: float = 0.05
-@export var sim_speed_scale_max: float = 2.6
+@export var sim_speed_scale_min: float = 0.1
+@export var sim_speed_scale_max: float = 3.0
+@export var initial_camera_padding: Vector2 = Vector2(220.0, 180.0)
+@export var initial_camera_zoom_min: float = 0.12
+@export var initial_camera_zoom_max: float = 1.0
+@export var room_panel_width_fraction: float = 0.28
+@export var room_panel_height_fraction: float = 0.78
+@export var room_panel_max_width_fraction: float = 0.25
+@export var room_panel_min_width: float = 320.0
+@export var room_panel_max_width: float = 920.0
+@export var room_panel_min_height: float = 280.0
+@export var room_panel_max_height: float = 980.0
+@export var room_panel_screen_margin: float = 20.0
+@export var room_panel_width_scale_start_px: float = 800.0
+@export var room_panel_width_scale_end_px: float = 520.0
+@export var room_panel_font_size_min: int = 20
+@export var room_panel_font_size_max: int = 42
+@export var room_panel_line_separation_min: int = 4
+@export var room_panel_line_separation_max: int = 8
+@export var room_panel_margin_min: int = 12
+@export var room_panel_margin_max: int = 24
 
-var room_nodes: Array[Room] = []
+var room_nodes: Array = []
 var selected_room_idx: int = -1
 var room_vl_last: Dictionary = {}
 var room_alert_last_eval_s: Dictionary = {}
 var room_alert_active: Dictionary = {}
-var room_budget_last_update_s: float = 0.0
+var room_alert_trigger_count_total: int = 0
+var room_alert_trigger_count_by_room: Dictionary = {}
+var room_cost_last_update_s: float = 0.0
 var room_panel_next_update_s: float = 0.0
+var last_viewport_size: Vector2 = Vector2.ZERO
+var health_mode_active: bool = false
+var health_mode_baseline_ach: float = 3.0
+var health_mode_max_ach: float = 6.0
+var health_mode_min_ach: float = 0.0
+var active_config_path: String = ""
+var active_config_for_archive: Dictionary = {}
 
 const ROOM_ACH_STEP: float = 1.0
 const ROOM_VL_TREND_EPSILON: float = 0.01
-const ROOM_BUDGET_UPDATE_INTERVAL_S: float = 60.0
+const ROOM_COST_UPDATE_INTERVAL_S: float = 60.0
 const ROOM_VL_COLOR_POINTS := [
 	{"value": 0.0, "color": Color("#44c96b")},
 	{"value": 250.0, "color": Color("#ff9f1c")},
-	{"value": 500.0, "color": Color("#e63946")},
-	{"value": 1000.0, "color": Color("#cf4dff")}
+	{"value": 400.0, "color": Color("#e63946")},
+	{"value": 800.0, "color": Color("#cf4dff")}
 ]
 const SIM_SPEED_STEP_MIN: float = 0.001
+
+func _fit_camera_to_map_contents() -> void:
+	if camera_2d == null or map == null:
+		return
+
+	var min_pos := Vector2(INF, INF)
+	var max_pos := Vector2(-INF, -INF)
+	var found_any := false
+
+	for room in room_nodes:
+		if not is_instance_valid(room):
+			continue
+		var room_pos: Vector2 = room.global_position
+		min_pos.x = min(min_pos.x, room_pos.x)
+		min_pos.y = min(min_pos.y, room_pos.y)
+		max_pos.x = max(max_pos.x, room_pos.x)
+		max_pos.y = max(max_pos.y, room_pos.y)
+		found_any = true
+
+	for oid in Global.all_objects:
+		var obj = Global.all_objects[oid]
+		if not is_instance_valid(obj):
+			continue
+		var obj_pos: Vector2 = obj.global_position
+		min_pos.x = min(min_pos.x, obj_pos.x)
+		min_pos.y = min(min_pos.y, obj_pos.y)
+		max_pos.x = max(max_pos.x, obj_pos.x)
+		max_pos.y = max(max_pos.y, obj_pos.y)
+		found_any = true
+
+	if not found_any:
+		return
+
+	min_pos -= initial_camera_padding
+	max_pos += initial_camera_padding
+
+	var content_size := (max_pos - min_pos).abs()
+	content_size.x = max(content_size.x, 1.0)
+	content_size.y = max(content_size.y, 1.0)
+
+	var center := (min_pos + max_pos) * 0.5
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	var zoom_x := viewport_size.x / content_size.x
+	var zoom_y := viewport_size.y / content_size.y
+	var target_zoom := clampf(min(zoom_x, zoom_y), initial_camera_zoom_min, initial_camera_zoom_max)
+
+	camera_2d.position = center
+	camera_2d.offset = Vector2.ZERO
+	camera_2d.zoom = Vector2(target_zoom, target_zoom)
+
+func _update_room_panel_layout() -> void:
+	if room_panel == null or room_panel_text == null or room_panel_margin == null:
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	last_viewport_size = viewport_size
+
+	var panel_width := clampf(viewport_size.x * room_panel_width_fraction, room_panel_min_width, room_panel_max_width)
+	var panel_height := clampf(viewport_size.y * room_panel_height_fraction, room_panel_min_height, room_panel_max_height)
+	panel_width = min(panel_width, viewport_size.x * room_panel_max_width_fraction)
+	panel_width = min(panel_width, max(160.0, viewport_size.x - room_panel_screen_margin * 2.0))
+	panel_height = min(panel_height, max(120.0, viewport_size.y - room_panel_screen_margin * 2.0))
+
+	room_panel.anchor_left = 1.0
+	room_panel.anchor_right = 1.0
+	room_panel.anchor_top = 0.5
+	room_panel.anchor_bottom = 0.5
+	room_panel.offset_left = -room_panel_screen_margin - panel_width
+	room_panel.offset_right = -room_panel_screen_margin
+	room_panel.offset_top = -panel_height * 0.5
+	room_panel.offset_bottom = panel_height * 0.5
+
+	var height_scale := clampf(inverse_lerp(720.0, 1600.0, viewport_size.y), 0.0, 1.0)
+	var width_scale_start: float = minf(room_panel_width_scale_start_px, room_panel_width_scale_end_px)
+	var width_scale_end: float = maxf(room_panel_width_scale_start_px, room_panel_width_scale_end_px)
+	var width_scale := clampf(inverse_lerp(width_scale_start, width_scale_end, panel_width), 0.0, 1.0)
+	var ui_scale: float = minf(height_scale, width_scale)
+	var target_font_size := int(round(lerpf(room_panel_font_size_min, room_panel_font_size_max, ui_scale)))
+	var line_separation := int(round(lerpf(room_panel_line_separation_min, room_panel_line_separation_max, ui_scale)))
+	var margin_size := int(round(lerpf(room_panel_margin_min, room_panel_margin_max, ui_scale)))
+
+	room_panel_text.add_theme_font_size_override("normal_font_size", target_font_size)
+	room_panel_text.add_theme_font_size_override("bold_font_size", target_font_size)
+	room_panel_text.add_theme_constant_override("line_separation", line_separation)
+	room_panel_text.scroll_active = viewport_size.y < 900.0 or viewport_size.x < 1500.0
+
+	room_panel_margin.add_theme_constant_override("margin_left", margin_size)
+	room_panel_margin.add_theme_constant_override("margin_top", margin_size)
+	room_panel_margin.add_theme_constant_override("margin_right", margin_size)
+	room_panel_margin.add_theme_constant_override("margin_bottom", margin_size)
 
 func _derive_room_output_path(sim_output_file: String) -> String:
 	if sim_output_file.ends_with(".json"):
@@ -59,6 +189,209 @@ func _derive_poison_output_path(person_output_file: String) -> String:
 	if person_output_file.ends_with(".json"):
 		return person_output_file.trim_suffix(".json") + "_poison.json"
 	return person_output_file + "_poison.json"
+
+func _derive_exposure_output_path(person_output_file: String) -> String:
+	if person_output_file.ends_with(".json"):
+		return person_output_file.trim_suffix(".json") + "_exposure.json"
+	return person_output_file + "_exposure.json"
+
+func _derive_stats_output_path(person_output_file: String) -> String:
+	if person_output_file.ends_with(".json"):
+		return person_output_file.trim_suffix(".json") + "_stats.json"
+	return person_output_file + "_stats.json"
+
+func _format_run_id(run_number: int) -> String:
+	return "%04d" % max(run_number, 0)
+
+func _strip_run_id_suffix(output_path: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("_id-[0-9]+\\.json$")
+	var match := regex.search(output_path)
+	if match == null:
+		return output_path
+	var start_idx: int = int(match.get_start())
+	return output_path.substr(0, start_idx) + ".json"
+
+func _with_run_id_suffix(output_path: String, run_id: String) -> String:
+	output_path = _strip_run_id_suffix(output_path)
+	var suffix := "_id-%s" % run_id
+	if output_path.ends_with(".json"):
+		return output_path.trim_suffix(".json") + suffix + ".json"
+	return output_path + suffix
+
+func _next_run_number_from_dir(dir_path: String) -> int:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return 0
+
+	var regex := RegEx.new()
+	regex.compile("_id-([0-9]+)\\.json$")
+
+	var max_run_number := -1
+	dir.list_dir_begin()
+	while true:
+		var file_name := dir.get_next()
+		if file_name == "":
+			break
+		if dir.current_is_dir():
+			continue
+
+		var match := regex.search(file_name)
+		if match == null:
+			continue
+
+		var run_str: String = match.get_string(1)
+		if not run_str.is_valid_int():
+			continue
+
+		var parsed_run := int(run_str)
+		if parsed_run > max_run_number:
+			max_run_number = parsed_run
+	dir.list_dir_end()
+
+	return max_run_number + 1
+
+func _resolve_run_number(config_run_number: int, output_dirs: Array[String]) -> int:
+	var detected_next_run := 0
+	for output_dir in output_dirs:
+		detected_next_run = max(detected_next_run, _next_run_number_from_dir(output_dir))
+	return max(config_run_number, detected_next_run)
+
+func _resolve_stats_output_path_from_config(config_path: String) -> String:
+	if config_path == "":
+		return ""
+	if not FileAccess.file_exists(config_path):
+		return ""
+
+	var config_file := FileAccess.open(config_path, FileAccess.READ)
+	if config_file == null:
+		return ""
+
+	var config_data = JSON.parse_string(config_file.get_as_text())
+	if not config_data is Dictionary:
+		return ""
+
+	var person_output_file: String = str(config_data.get("person_output_file", config_data.get("output_file", "output_people.json")))
+	var stats_output_file: String = str(config_data.get("stats_output_file", ""))
+	if stats_output_file == "":
+		stats_output_file = _derive_stats_output_path(person_output_file)
+	if not stats_output_file.is_absolute_path():
+		stats_output_file = config_path.get_base_dir().path_join(stats_output_file)
+	return stats_output_file
+
+func _read_last_run_summary_row(stats_file_path: String) -> Dictionary:
+	if stats_file_path == "":
+		return {}
+	if not FileAccess.file_exists(stats_file_path):
+		return {}
+
+	var stats_file := FileAccess.open(stats_file_path, FileAccess.READ)
+	if stats_file == null:
+		return {}
+
+	var lines: PackedStringArray = stats_file.get_as_text().split("\n", false)
+	for idx in range(lines.size() - 1, -1, -1):
+		var line: String = lines[idx].strip_edges()
+		if line == "":
+			continue
+		var parsed = JSON.parse_string(line)
+		if parsed is Dictionary and str(parsed.get("event", "")) == "run_summary":
+			return parsed
+	return {}
+
+func _refresh_last_run_summary(stats_file_path: String = "") -> void:
+	if last_run_summary_label == null:
+		return
+
+	var effective_stats_file_path := stats_file_path
+	if effective_stats_file_path == "":
+		effective_stats_file_path = _resolve_stats_output_path_from_config(default_config_path)
+
+	var row: Dictionary = _read_last_run_summary_row(effective_stats_file_path)
+	if row.is_empty():
+		last_run_summary_label.text = "Last Run: none yet"
+		return
+
+	var run_id: String = str(row.get("run_id", "n/a"))
+	var player_name: String = str(row.get("player_name", ""))
+	if player_name == "":
+		player_name = "Anonymous"
+	var alert_count: int = int(row.get("alert_trigger_count", 0))
+	var total_cost: float = float(row.get("ach_total_cost", 0.0))
+	var exposure_mean: float = float(row.get("exposure_mean_cumulative", 0.0))
+	var exposure_max: float = float(row.get("exposure_max_cumulative", 0.0))
+	var end_reason: String = str(row.get("end_reason", "n/a"))
+
+	last_run_summary_label.text = "Last Run %s | %s | Alerts %d | Cost $%.2f | Exposure Avg %.2f Max %.2f | End %s" % [
+		run_id,
+		player_name,
+		alert_count,
+		total_cost,
+		exposure_mean,
+		exposure_max,
+		end_reason
+	]
+
+func _safe_close_file(file_handle: FileAccess) -> void:
+	if file_handle != null:
+		file_handle.close()
+
+func _archive_run_config() -> void:
+	if active_config_path == "":
+		return
+
+	var archive_config: Dictionary = active_config_for_archive.duplicate(true)
+	archive_config["run_number"] = Global.run_number
+	archive_config["run_id"] = Global.run_id
+	archive_config["run_suffix"] = "_id-%s" % Global.run_id
+
+	var archive_file_name: String = "archived_config_id-%s.json" % Global.run_id
+	var archive_file_path: String = active_config_path.get_base_dir().path_join(archive_file_name)
+	var archive_file: FileAccess = FileAccess.open(archive_file_path, FileAccess.WRITE)
+	if archive_file == null:
+		print("Failed to archive config file: ", archive_file_path)
+		return
+
+	archive_file.store_string(JSON.stringify(archive_config, "\t"))
+	archive_file.store_string("\n")
+	archive_file.close()
+
+func _clear_simulation_persons() -> void:
+	for pid in Global.all_persons:
+		var person = Global.all_persons[pid]
+		if is_instance_valid(person):
+			person.queue_free()
+	Global.all_persons.clear()
+
+func _configure_rooms_health_bounds() -> void:
+	for room in room_nodes:
+		if is_instance_valid(room) and room.has_method("configure_ach_bounds"):
+			room.configure_ach_bounds(health_mode_min_ach, health_mode_max_ach, health_mode_baseline_ach)
+
+func _set_health_mode(active: bool) -> void:
+	if health_mode_active == active:
+		return
+
+	health_mode_active = active
+	var current_time_s: float = Global.current_time_s()
+	for room in room_nodes:
+		if is_instance_valid(room) and room.has_method("set_health_mode_enabled"):
+			room.set_health_mode_enabled(health_mode_active, current_time_s)
+
+	if health_mode_active:
+		_apply_health_mode_ach_overrides()
+	_update_room_panel(true)
+
+func _apply_health_mode_ach_overrides() -> void:
+	if not health_mode_active:
+		return
+
+	for room in room_nodes:
+		if not is_instance_valid(room):
+			continue
+		if room.has_method("apply_health_mode_alert"):
+			var alert_active_now: bool = room.viral_load >= room_alert_threshold_vl
+			room.apply_health_mode_alert(alert_active_now)
 
 func _scene_for_person(pd: Dictionary) -> PackedScene:
 	var role := str(pd.get("role", "")).strip_edges()
@@ -107,7 +440,7 @@ func create_persons(file: String):
 			print("Missing scene for person: ", JSON.stringify(pd))
 			continue
 
-		var person: Person = scene_to_spawn.instantiate()
+		var person = scene_to_spawn.instantiate()
 		person.pid = str(pd.get("pid", ""))
 		person.role = str(pd.get("role", ""))
 		person.poison = float(pd.get("start_poison", 0))
@@ -131,7 +464,7 @@ func load_schedule(file: String):
 		var oid: String = _resolve_object_oid(str(sd["oid"]))
 		var time: float = sd["start_time"]
 		var activity_name: String = str(sd.get("activity", ""))
-		var person: Person = Global.all_persons[pid]
+		var person = Global.all_persons[pid]
 		person.activity_aid.append(aid)
 		person.activity_oid.append(oid)
 		person.activity_name.append(activity_name)
@@ -175,15 +508,30 @@ func _resolve_object_oid(raw_oid: String) -> String:
 func load_config(file: String):
 	print("Loading config from file: ", file)
 
-	var config_file = FileAccess.open(file, FileAccess.READ)
-	var config_data = JSON.parse_string(config_file.get_as_text())
+	var config_file: FileAccess = FileAccess.open(file, FileAccess.READ)
+	var parsed_config = JSON.parse_string(config_file.get_as_text())
+	if not parsed_config is Dictionary:
+		print("Config file must be a JSON object: ", file)
+		return
+	var config_data: Dictionary = parsed_config
+	active_config_path = file
+	active_config_for_archive = config_data.duplicate(true)
 
 	var person_file: String = config_data["person_file"]
 	var schedule_file: String = config_data["schedule_file"]
 	var person_output_file: String = str(config_data.get("person_output_file", config_data.get("output_file", "output_people.json")))
 	var poison_output_file: String = str(config_data.get("poison_output_file", ""))
 	var room_output_file: String = str(config_data.get("room_output_file", ""))
+	var exposure_output_file: String = str(config_data.get("exposure_output_file", ""))
+	var stats_output_file: String = str(config_data.get("stats_output_file", ""))
 	var room_ach_file: String = str(config_data.get("room_ach_file", ""))
+	var config_run_number: int = maxi(int(config_data.get("run_number", 0)), 0)
+	var config_health_baseline: float = float(config_data.get("health_mode_baseline_ach", config_data.get("baseline_ach", 3.0)))
+	var config_health_max: float = float(config_data.get("health_mode_max_ach", config_data.get("max_ach", 6.0)))
+	var config_health_min: float = float(config_data.get("health_mode_min_ach", config_data.get("minimum_ach", 0.0)))
+	health_mode_min_ach = minf(config_health_min, config_health_max)
+	health_mode_max_ach = maxf(config_health_min, config_health_max)
+	health_mode_baseline_ach = clampf(config_health_baseline, health_mode_min_ach, health_mode_max_ach)
 
 	if not person_file.is_absolute_path():
 		person_file = file.get_base_dir().path_join(person_file)
@@ -199,14 +547,40 @@ func load_config(file: String):
 		room_output_file = _derive_room_output_path(person_output_file)
 	if not room_output_file.is_absolute_path():
 		room_output_file = file.get_base_dir().path_join(room_output_file)
+	if exposure_output_file == "":
+		exposure_output_file = _derive_exposure_output_path(person_output_file)
+	if not exposure_output_file.is_absolute_path():
+		exposure_output_file = file.get_base_dir().path_join(exposure_output_file)
+	if stats_output_file == "":
+		stats_output_file = _derive_stats_output_path(person_output_file)
+	if not stats_output_file.is_absolute_path():
+		stats_output_file = file.get_base_dir().path_join(stats_output_file)
+
+	var output_dirs: Array[String] = [
+		person_output_file.get_base_dir(),
+		poison_output_file.get_base_dir(),
+		room_output_file.get_base_dir(),
+		exposure_output_file.get_base_dir()
+	]
+	Global.run_number = _resolve_run_number(config_run_number, output_dirs)
+	Global.run_id = _format_run_id(Global.run_number)
+
+	person_output_file = _with_run_id_suffix(person_output_file, Global.run_id)
+	poison_output_file = _with_run_id_suffix(poison_output_file, Global.run_id)
+	room_output_file = _with_run_id_suffix(room_output_file, Global.run_id)
+	exposure_output_file = _with_run_id_suffix(exposure_output_file, Global.run_id)
 	if room_ach_file != "" and not room_ach_file.is_absolute_path():
 		room_ach_file = file.get_base_dir().path_join(room_ach_file)
+
+	_clear_simulation_persons()
 
 	create_persons(person_file)
 	load_schedule(schedule_file)
 	Global.person_output_file_path = person_output_file
 	Global.poison_output_file_path = poison_output_file
 	Global.room_output_file_path = room_output_file
+	Global.exposure_output_file_path = exposure_output_file
+	Global.stats_output_file_path = stats_output_file
 
 	var requested_sim_speed: float = float(config_data["sim_speed_scale"])
 	_apply_sim_speed_scale(requested_sim_speed)
@@ -223,12 +597,13 @@ func load_config(file: String):
 	Global.abs_fast_rate_per_s = config_data["abs_fast_rate_per_h"] / 3600.0
 	Global.abs_slow_frac_rate_per_s = config_data["abs_slow_frac_rate_per_h"] / 3600.0
 	Global.abs_obj_absorption_frac = config_data["abs_obj_absorption_frac"]
-	Global.room_ach_budget_start = float(config_data.get("room_ach_budget_start", 100.0))
-	Global.room_ach_budget_remaining = Global.room_ach_budget_start
+	Global.room_ach_total_cost = float(config_data.get("room_ach_total_cost_start", 0.0))
 	Global.room_ach_cost_per_ach_hour = float(config_data.get("room_ach_cost_per_ach_hour", 5.0))
 
 	if room_ach_file != "":
 		load_room_ach_schedule(room_ach_file)
+
+	_fit_camera_to_map_contents()
 
 func load_room_ach_schedule(file: String):
 	print("Loading room ACH schedule from file: ", file)
@@ -241,6 +616,12 @@ func load_room_ach_schedule(file: String):
 
 	for rid in Global.all_rooms:
 		Global.all_rooms[rid].set_ach_schedule([])
+
+	var room_ids_by_alias: Dictionary = {}
+	for rid in Global.all_rooms:
+		var room = Global.all_rooms[rid]
+		room_ids_by_alias[room.room_id] = room.room_id
+		room_ids_by_alias[room.display_name()] = room.room_id
 
 	var rows_by_room: Dictionary = {}
 	for row in schedule_data:
@@ -260,14 +641,16 @@ func load_room_ach_schedule(file: String):
 		})
 
 	for room_id in rows_by_room:
-		if Global.all_rooms.has(room_id):
-			Global.all_rooms[room_id].set_ach_schedule(rows_by_room[room_id])
+		var resolved_room_id: String = str(room_ids_by_alias.get(room_id, ""))
+		if resolved_room_id != "" and Global.all_rooms.has(resolved_room_id):
+			Global.all_rooms[resolved_room_id].set_ach_schedule(rows_by_room[room_id])
 		else:
 			print("Room ACH schedule references unknown room_id: ", room_id)
 
 	print("Loaded ACH rows for ", rows_by_room.size(), " rooms")
 
 func start_simulation(file: String):
+	Global.player_name = player_name_input.text.strip_edges()
 	load_config(file)
 
 	title_screen.hide()
@@ -281,11 +664,15 @@ func start_simulation(file: String):
 
 	for room in room_nodes:
 		room.reset_for_simulation(Global.runtime_start_s)
+	_configure_rooms_health_bounds()
+	_set_health_mode(false)
 
 	room_vl_last.clear()
 	room_alert_last_eval_s.clear()
 	room_alert_active.clear()
-	room_budget_last_update_s = Global.runtime_start_s
+	room_alert_trigger_count_total = 0
+	room_alert_trigger_count_by_room.clear()
+	room_cost_last_update_s = Global.runtime_start_s
 	room_panel_next_update_s = Global.runtime_start_s
 
 	Global.sim_clock_s = Global.runtime_start_s
@@ -293,7 +680,51 @@ func start_simulation(file: String):
 	Global.person_save_file = FileAccess.open(Global.person_output_file_path, FileAccess.WRITE)
 	Global.poison_save_file = FileAccess.open(Global.poison_output_file_path, FileAccess.WRITE)
 	Global.room_save_file = FileAccess.open(Global.room_output_file_path, FileAccess.WRITE)
+	Global.exposure_save_file = FileAccess.open(Global.exposure_output_file_path, FileAccess.WRITE)
+	if FileAccess.file_exists(Global.stats_output_file_path):
+		Global.stats_save_file = FileAccess.open(Global.stats_output_file_path, FileAccess.READ_WRITE)
+		if Global.stats_save_file != null:
+			Global.stats_save_file.seek_end()
+	else:
+		Global.stats_save_file = FileAccess.open(Global.stats_output_file_path, FileAccess.WRITE)
+	save_timer.wait_time = Global.save_every_s
+	var session_header_json: String = JSON.stringify({
+		"event": "session_start",
+		"player_name": Global.player_name,
+		"run_number": Global.run_number,
+		"run_id": Global.run_id,
+		"timestamp": Time.get_datetime_string_from_system()
+	})
+	Global.person_save_file.store_line(session_header_json)
+	Global.poison_save_file.store_line(session_header_json)
+	Global.room_save_file.store_line(session_header_json)
+	Global.exposure_save_file.store_line(session_header_json)
 	save_timer.start()
+	_update_room_panel(true)
+
+func _end_simulation(reason: String = "manual") -> void:
+	if not Global.is_simulation_active:
+		return
+
+	Global.is_simulation_active = false
+	Global.is_simulation_paused = false
+	save_timer.stop()
+	_on_save_timer_timeout()
+	_write_panel_stats_snapshot(reason)
+	_archive_run_config()
+
+	_safe_close_file(Global.person_save_file)
+	_safe_close_file(Global.poison_save_file)
+	_safe_close_file(Global.room_save_file)
+	_safe_close_file(Global.exposure_save_file)
+	_safe_close_file(Global.stats_save_file)
+
+	title_screen.show()
+	map.hide()
+	_set_health_mode(false)
+	_refresh_last_run_summary(Global.stats_output_file_path)
+	_update_room_panel(true)
+	current_time_label.text = "Current Time: 0.0"
 
 func _on_save_object_button_pressed():
 	object_file_dialog.show()
@@ -302,12 +733,80 @@ func _on_object_file_selected(file: String):
 	object_file_dialog.hide()
 	save_objects(file)
 
+func _on_start_simulation_default_button_pressed():
+	start_simulation(default_config_path)
+
 func _on_start_simulation_button_pressed():
 	config_file_dialog.show()
 
 func _on_config_file_selected(file: String):
 	config_file_dialog.hide()
 	start_simulation(file)
+
+func _on_player_name_input_changed(new_text: String):
+	Global.player_name = new_text.strip_edges()
+
+func _on_end_simulation_button_pressed():
+	_end_simulation("manual")
+
+func _exposure_stats() -> Dictionary:
+	if Global.all_persons.is_empty():
+		return {
+			"count": 0,
+			"mean": 0.0,
+			"max": 0.0,
+			"max_pid": ""
+		}
+
+	var total: float = 0.0
+	var max_value: float = -INF
+	var max_pid: String = ""
+	var count: int = 0
+
+	for pid in Global.all_persons:
+		var person = Global.all_persons[pid]
+		var value: float = person.cumulative_viral_exposure
+		total += value
+		count += 1
+		if value > max_value:
+			max_value = value
+			max_pid = person.pid
+
+	if count == 0:
+		max_value = 0.0
+
+	return {
+		"count": count,
+		"mean": total / float(max(count, 1)),
+		"max": max_value,
+		"max_pid": max_pid
+	}
+
+func _write_panel_stats_snapshot(reason: String = "schedule_complete") -> void:
+	if Global.stats_save_file == null:
+		return
+
+	var exposure_stats: Dictionary = _exposure_stats()
+	var row := {
+		"event": "run_summary",
+		"time": Global.current_time_s(),
+		"timestamp": Time.get_datetime_string_from_system(),
+		"player_name": Global.player_name,
+		"run_number": Global.run_number,
+		"run_id": Global.run_id,
+		"end_reason": reason,
+		"sim_speed_scale": Global.sim_speed_scale,
+		"alert_trigger_count": room_alert_trigger_count_total,
+		"ach_total_cost": Global.room_ach_total_cost,
+		"ach_cost_rate_per_ach_hour": Global.room_ach_cost_per_ach_hour,
+		"exposure_mean_cumulative": float(exposure_stats["mean"]),
+		"exposure_max_cumulative": float(exposure_stats["max"]),
+		"exposure_max_pid": str(exposure_stats["max_pid"]),
+		"next_sensor_reading": _next_sensor_reading_text(),
+		"room_count": room_nodes.size(),
+		"total_ach": _current_room_ach_total()
+	}
+	Global.stats_save_file.store_line(JSON.stringify(row))
 
 func _on_save_timer_timeout():
 	print("Saving pending output")
@@ -323,12 +822,26 @@ func _on_save_timer_timeout():
 			"room_id": room.room_id,
 			"ach": room.ach_current,
 			"viral_load": room.viral_load,
+			"ach_total_cost": Global.room_ach_total_cost,
 			"occupant_pids": room.occupant_pid_csv(),
 		}
 		Global.room_save_file.store_line(JSON.stringify(row))
+	for pid in Global.all_persons:
+		var person = Global.all_persons[pid]
+		var exposure_row = {
+			"event": "person_exposure",
+			"time": Global.current_time_s(),
+			"pid": person.pid,
+			"cumulative_viral_exposure": person.cumulative_viral_exposure,
+			"sample_count": person.exposure_sample_count,
+		}
+		Global.exposure_save_file.store_line(JSON.stringify(exposure_row))
 	Global.person_save_file.flush()
 	Global.poison_save_file.flush()
 	Global.room_save_file.flush()
+	Global.exposure_save_file.flush()
+	if Global.stats_save_file != null:
+		Global.stats_save_file.flush()
 	print("Saving pending output complete.")
 
 func _ready() -> void:
@@ -337,6 +850,10 @@ func _ready() -> void:
 
 	save_object_button.pressed.connect(_on_save_object_button_pressed)
 	start_simulation_button.pressed.connect(_on_start_simulation_button_pressed)
+	start_simulation_default_button.pressed.connect(_on_start_simulation_default_button_pressed)
+	end_simulation_button.pressed.connect(_on_end_simulation_button_pressed)
+	player_name_input.text_changed.connect(_on_player_name_input_changed)
+	_refresh_last_run_summary()
 
 	var home_dir = OS.get_environment("HOME")
 	object_file_dialog.root_subfolder = home_dir
@@ -344,6 +861,7 @@ func _ready() -> void:
 
 	save_timer.timeout.connect(_on_save_timer_timeout)
 	save_timer.wait_time = Global.save_every_s
+	get_viewport().size_changed.connect(_update_room_panel_layout)
 
 	for object in get_tree().get_nodes_in_group("smart_object"):
 		var oid: String = object.get_path()
@@ -351,7 +869,7 @@ func _ready() -> void:
 		Global.all_objects[oid] = object
 
 	for room in get_tree().get_nodes_in_group("room"):
-		var room_node: Room = room
+		var room_node = room
 		if room_node.room_id == "":
 			room_node.room_id = room_node.get_path()
 		Global.all_rooms[room_node.room_id] = room_node
@@ -381,6 +899,9 @@ func _ready() -> void:
 			# Move the 2 link positions to their intended global positions.
 			NavigationServer2D.link_set_start_position(link_rid, entrances[i].global_position)
 			NavigationServer2D.link_set_end_position(link_rid, entrances[j].global_position)
+
+	call_deferred("_fit_camera_to_map_contents")
+	call_deferred("_update_room_panel_layout")
 
 	var user_args = OS.get_cmdline_user_args()
 	if len(user_args) == 2 and user_args[0] == "--config":
@@ -419,6 +940,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
+		if Global.is_simulation_active and event.keycode == KEY_H:
+			_set_health_mode(not health_mode_active)
+			get_viewport().set_input_as_handled()
+			return
+
 	if not Global.is_simulation_active:
 		return
 
@@ -452,6 +978,13 @@ func _adjust_selected_room_ach(delta: float):
 
 	room_nodes[selected_room_idx].adjust_ach(delta)
 	_update_room_panel(true)
+
+func _room_ach_mode_marker(room) -> String:
+	if health_mode_active:
+		return "🄷"
+	if room.has_method("ach_mode_marker"):
+		return room.ach_mode_marker()
+	return "🅂" if room.has_ach_schedule() else "🄼"
 
 func _sim_speed_bounds() -> Vector2:
 	var min_scale: float = float(min(sim_speed_scale_min, sim_speed_scale_max))
@@ -511,15 +1044,15 @@ func _current_room_ach_total() -> float:
 		total_ach += max(0.0, room.ach_current)
 	return total_ach
 
-func _update_room_budget() -> void:
+func _update_room_cost() -> void:
 	if not Global.can_advance_simulation():
 		return
 
-	while Global.sim_clock_s - room_budget_last_update_s >= ROOM_BUDGET_UPDATE_INTERVAL_S:
-		var elapsed_hours := ROOM_BUDGET_UPDATE_INTERVAL_S / 3600.0
+	while Global.sim_clock_s - room_cost_last_update_s >= ROOM_COST_UPDATE_INTERVAL_S:
+		var elapsed_hours := ROOM_COST_UPDATE_INTERVAL_S / 3600.0
 		var ach_cost := _current_room_ach_total() * Global.room_ach_cost_per_ach_hour * elapsed_hours
-		Global.room_ach_budget_remaining = max(0.0, Global.room_ach_budget_remaining - ach_cost)
-		room_budget_last_update_s += ROOM_BUDGET_UPDATE_INTERVAL_S
+		Global.room_ach_total_cost += ach_cost
+		room_cost_last_update_s += ROOM_COST_UPDATE_INTERVAL_S
 
 func _room_vl_trend_symbol(room_id: String, current_viral_load: float) -> String:
 	if not room_vl_last.has(room_id):
@@ -543,24 +1076,30 @@ func _room_selector_marker(idx: int) -> String:
 		return _color_tag_text("■", active_color)
 	return _color_tag_text("□", inactive_color)
 
-func _room_alert_state(room: Room) -> bool:
-	var room_id := room.room_id
+func _room_alert_state(room) -> bool:
+	var room_id: String = room.room_id
 	var now_s := Global.current_time_s()
 	var should_evaluate := not room_alert_active.has(room_id)
+	var previous_state: bool = bool(room_alert_active.get(room_id, false))
 	if not should_evaluate:
 		var last_eval := float(room_alert_last_eval_s.get(room_id, -INF))
 		if room_alert_check_interval_s <= 0.0 or now_s - last_eval >= room_alert_check_interval_s:
 			should_evaluate = true
 
 	if should_evaluate:
-		room_alert_active[room_id] = room.viral_load >= room_alert_threshold_vl
+		var new_state: bool = room.viral_load >= room_alert_threshold_vl
+		room_alert_active[room_id] = new_state
+		if new_state and not previous_state:
+			room_alert_trigger_count_total += 1
+			var per_room_count: int = int(room_alert_trigger_count_by_room.get(room_id, 0))
+			room_alert_trigger_count_by_room[room_id] = per_room_count + 1
 		room_alert_last_eval_s[room_id] = now_s
 
 	var is_alerting := bool(room_alert_active.get(room_id, false))
 	room.set_alert_indicator(is_alerting)
 	return is_alerting
 
-func _room_alert_light(room: Room) -> String:
+func _room_alert_light(room) -> String:
 	var is_alerting := _room_alert_state(room)
 	var alert_on_color := Color("#ff4d4f")
 	var alert_off_color := Color("#d5d7da")
@@ -600,6 +1139,23 @@ func _next_sensor_reading_text() -> String:
 	var remaining: float = max(0.0, next_due - now_s)
 	return "Next Sensor Reading: %s" % _format_duration(remaining)
 
+func _exposure_summary_text() -> String:
+	var exposure_stats: Dictionary = _exposure_stats()
+	var count: int = int(exposure_stats["count"])
+	if count == 0:
+		return "Exposure: n/a"
+
+	return "[b]Exposure:[/b] Avg Cum %.2f | Max %.2f (PID %s)" % [
+		float(exposure_stats["mean"]),
+		float(exposure_stats["max"]),
+		str(exposure_stats["max_pid"])
+	]
+
+func _ach_control_mode_text() -> String:
+	if health_mode_active:
+		return "[b]ACH Control:[/b] Health Mode (🄷 active, H toggle)"
+	return "[b]ACH Control:[/b] Schedule/Manual (🅂/🄼, H toggle)"
+
 func _update_room_panel(force_update: bool = false) -> void:
 	if room_panel == null or room_panel_text == null:
 		return
@@ -618,13 +1174,14 @@ func _update_room_panel(force_update: bool = false) -> void:
 		return
 
 	var lines: Array[String] = []
-	lines.append("[center][b]Rooms[/b] (R next, E prev, +/- ACH, S faster, D slower)[/center]")
+	lines.append("[center][b]Rooms[/b] (R next, E prev, +/- ACH, H health mode, S faster, D slower)[/center]")
+	lines.append("")
 	lines.append("")
 	lines.append("[table=6]" )
-	lines.append("[cell][/cell][cell][center]Room[/center][/cell][cell][center]Alert[/center][/cell][cell][center]ACH[/center][/cell][cell][center]VL[/center][/cell][cell][center]Trend[/center][/cell]")
+	lines.append("[cell] [/cell][cell][center] Room [/center][/cell][cell][center] Alert [/center][/cell][cell][center] ACH [/center][/cell][cell][center] VL [/center][/cell][cell][center] Trend [/center][/cell]")
 
 	for idx in range(room_nodes.size()):
-		var room := room_nodes[idx]
+		var room = room_nodes[idx]
 		var row_color := _room_vl_color(room.viral_load)
 		var selector := _room_selector_marker(idx)
 		var room_name_text := "  " + _color_tag_text(_short_room_name(room.room_id), row_color)
@@ -632,25 +1189,37 @@ func _update_room_panel(force_update: bool = false) -> void:
 		var trend_text := _color_tag_text(trend_symbol, row_color)
 		var vl_text := _color_tag_text("%.1f" % room.viral_load, row_color)
 		var alert_light := _room_alert_light(room)
-		var cell_values := [selector, room_name_text, alert_light, "%.1f" % room.ach_current, vl_text, trend_text]
+		var ach_cell := _room_ach_mode_marker(room) + " %.1f" % room.ach_current
+		var cell_values := [selector, room_name_text, alert_light, ach_cell, vl_text, trend_text]
 		if idx == selected_room_idx:
 			var prefix := "[b]"
 			var suffix := "[/b]"
 			for c in range(cell_values.size()):
 				cell_values[c] = "%s%s%s" % [prefix, cell_values[c], suffix]
-		lines.append("[cell]%s[/cell][cell]%s[/cell][cell]%s[/cell][cell]%s[/cell][cell]%s[/cell][cell]%s[/cell]" % cell_values)
+		lines.append("[cell] %s [/cell][cell] %s [/cell][cell] %s [/cell][cell] %s [/cell][cell] %s [/cell][cell] %s [/cell]" % cell_values)
 
 	lines.append("[/table]")
 	lines.append("")
-	lines.append("[b]Budget:[/b] $%.2f / $%.2f" % [Global.room_ach_budget_remaining, Global.room_ach_budget_start])
+	lines.append("")
+	lines.append("[b]Total Cost:[/b] $%.2f" % [Global.room_ach_total_cost])
 	lines.append("Rate: $%.2f per ACH-hour" % [Global.room_ach_cost_per_ach_hour])
+	lines.append("")
 	lines.append("[b]Sim Speed:[/b] x%.2f (S faster, D slower)" % Global.sim_speed_scale)
 	lines.append(_next_sensor_reading_text())
+	lines.append("[b]Alert Triggers:[/b] %d" % room_alert_trigger_count_total)
+	lines.append("")
+	lines.append(_exposure_summary_text())
+	lines.append("")
+	lines.append(_ach_control_mode_text())
 
 	room_panel_text.text = "\n".join(lines)
 
 
 func _process(_delta: float) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size != last_viewport_size:
+		_update_room_panel_layout()
+
 	if Input.is_action_pressed("camera_right"):
 		camera_2d.offset.x += 32
 	if Input.is_action_pressed("camera_left"):
@@ -685,20 +1254,13 @@ func _process(_delta: float) -> void:
 	_update_room_panel()
 
 	if Global.current_time_s() > Global.runtime_end_s:
-		Global.is_simulation_active = false
-		Global.is_simulation_paused = false
-		save_timer.stop()
-		_on_save_timer_timeout()
-		Global.person_save_file.close()
-		Global.poison_save_file.close()
-		Global.room_save_file.close()
-		get_tree().root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
-		get_tree().quit()
+		_end_simulation("schedule_complete")
 
 func _physics_process(_delta: float) -> void:
 	if Global.can_advance_simulation() and Global.sim_clock_s > 0.0:
 		Global.sim_clock_s += Global.seconds_per_physics_tick
-		_update_room_budget()
+		_apply_health_mode_ach_overrides()
+		_update_room_cost()
 
 		if Global.sim_clock_s - Global.prev_abs_event_s > Global.abs_tick_duration_s:
 			for pid in Global.all_persons:

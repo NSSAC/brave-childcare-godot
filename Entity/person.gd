@@ -1,4 +1,11 @@
-class_name Person extends CharacterBody2D
+class_name Person
+extends CharacterBody2D
+
+@onready var navigation_agent_2d: NavigationAgent2D = $NavigationAgent2D
+@onready var label: Label = $Label
+@onready var halo: AnimatedSprite2D = $Halo
+
+const LABEL_VERTICAL_OFFSET: float = 0.0
 
 var pid: String = ""
 var role: String = ""
@@ -54,11 +61,12 @@ var output_absorption_time: Array[float] = []
 var output_poison: Array[float] = []
 var output_absorbed_poison: Array[float] = []
 
-@onready var navigation_agent_2d: NavigationAgent2D = $NavigationAgent2D
-@onready var halo: AnimatedSprite2D = $Halo
-@onready var label: Label = $Label
-const LABEL_VERTICAL_OFFSET: float = -8.0
+var cumulative_viral_exposure: float = 0.0
+var exposure_sample_count: int = 0
+var last_exposure_sample_time: float = 0.0
+var current_room: Area2D = null
 
+const EXPOSURE_SAMPLE_INTERVAL_S: float = 60.0
 func save_events():
 	var n = len(output_event)
 	for i in range(n):
@@ -145,6 +153,8 @@ func _apply_disease_halo() -> void:
 func _physics_process(_delta: float) -> void:
 	if Global.is_simulation_paused:
 		return
+
+	sample_viral_exposure()
 
 	# If navigation has finished continue
 	if navigation_agent_2d.is_navigation_finished():
@@ -303,3 +313,30 @@ func do_absorption():
 		output_absorption_time.append(Global.current_time_s())
 		output_poison.append(poison)
 		output_absorbed_poison.append(absorbed_poison)
+
+func enter_room(room: Area2D) -> void:
+	current_room = room
+	last_exposure_sample_time = Global.current_time_s()
+
+func exit_room(room: Area2D) -> void:
+	if current_room == room:
+		current_room = null
+
+func sample_viral_exposure() -> void:
+	if current_room == null or not is_instance_valid(current_room):
+		return
+
+	var now_s: float = Global.current_time_s()
+	var time_since_last_sample: float = now_s - last_exposure_sample_time
+	if time_since_last_sample < EXPOSURE_SAMPLE_INTERVAL_S:
+		return
+
+	# Count one exposure sample per completed interval and sum raw sample values.
+	var samples_due: int = int(floor(time_since_last_sample / EXPOSURE_SAMPLE_INTERVAL_S))
+	if samples_due <= 0:
+		return
+
+	var room_vl: float = current_room.viral_load
+	cumulative_viral_exposure += room_vl * float(samples_due)
+	exposure_sample_count += samples_due
+	last_exposure_sample_time += EXPOSURE_SAMPLE_INTERVAL_S * float(samples_due)

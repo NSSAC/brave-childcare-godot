@@ -86,21 +86,27 @@ func absorb_poison_person(person: Person):
 # Only for objects in the poisoned object group
 var initial_poison: float = 500.0
 
-var all_objects: Dictionary[String, SmartObject] = {}
-var all_persons: Dictionary[String, Person] = {}
-var all_rooms: Dictionary[String, Room] = {}
+var all_objects: Dictionary = {}
+var all_persons: Dictionary = {}
+var all_rooms: Dictionary = {}
 
-var room_ach_budget_start: float = 100.0
-var room_ach_budget_remaining: float = 100.0
+var room_ach_total_cost: float = 0.0
 var room_ach_cost_per_ach_hour: float = 5.0
 
 var save_every_s: int = 5
+var player_name: String = ""
+var run_number: int = 0
+var run_id: String = "0000"
 var person_save_file: FileAccess
 var person_output_file_path: String
 var poison_save_file: FileAccess
 var poison_output_file_path: String
 var room_save_file: FileAccess
 var room_output_file_path: String
+var exposure_save_file: FileAccess
+var exposure_output_file_path: String
+var stats_save_file: FileAccess
+var stats_output_file_path: String
 
 func apply_sim_speed_scale(scale: float) -> void:
 	sim_speed_scale = scale

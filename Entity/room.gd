@@ -25,8 +25,17 @@ var alert_overlays: Array[Polygon2D] = []
 var occupants: Dictionary[String, Person] = {}
 var ach_schedule: Array[Dictionary] = []
 var ach_schedule_idx: int = 0
-var manual_override_until_next_schedule: bool = false
 var is_selected: bool = false
+var ach_last_update_source: String = "manual"
+var health_mode_enabled: bool = false
+var health_alert_active: bool = false
+var health_manual_override: bool = false
+var ach_min: float = 0.0
+var ach_max: float = 6.0
+var ach_health_baseline: float = 3.0
+
+const ACH_SOURCE_MANUAL: String = "manual"
+const ACH_SOURCE_SCHEDULE: String = "schedule"
 
 const ROOM_VL_COLOR_POINTS := [
 	{"value": 0.0, "color": Color("#44c96b")},
@@ -97,11 +106,51 @@ func _update_alert_overlays() -> void:
 
 func reset_for_simulation(start_time_s: float):
 	viral_load = 0.0
-	ach_current = ach_default
+	ach_current = _clamp_ach(ach_default)
+	ach_last_update_source = ACH_SOURCE_MANUAL
 	ach_schedule_idx = 0
-	manual_override_until_next_schedule = false
+	health_alert_active = false
+	health_manual_override = false
 	_apply_schedule_until_time(start_time_s)
 	_refresh_label()
+
+func configure_ach_bounds(min_ach: float, max_ach: float, baseline_ach: float) -> void:
+	ach_min = minf(min_ach, max_ach)
+	ach_max = maxf(min_ach, max_ach)
+	ach_health_baseline = _clamp_ach(baseline_ach)
+	ach_default = _clamp_ach(ach_default)
+	ach_current = _clamp_ach(ach_current)
+	_refresh_label()
+
+func set_health_mode_enabled(enabled: bool, current_time_s: float) -> void:
+	if health_mode_enabled == enabled:
+		return
+
+	health_mode_enabled = enabled
+	health_manual_override = false
+
+	if health_mode_enabled:
+		health_alert_active = false
+		ach_current = _clamp_ach(ach_health_baseline)
+	else:
+		health_alert_active = false
+		_apply_schedule_until_time(current_time_s)
+
+	_refresh_label()
+
+func apply_health_mode_alert(alert_active: bool) -> void:
+	if not health_mode_enabled:
+		return
+
+	if alert_active != health_alert_active:
+		health_alert_active = alert_active
+		health_manual_override = false
+		if health_alert_active:
+			ach_current = _clamp_ach(ach_max)
+		else:
+			ach_current = _clamp_ach(ach_health_baseline)
+		ach_last_update_source = ACH_SOURCE_MANUAL
+		_refresh_label()
 
 func set_selected(selected: bool):
 	if is_selected == selected:
@@ -127,25 +176,34 @@ func set_ach_schedule(entries: Array):
 
 		ach_schedule.append({
 			"start_time": float(entry.get("start_time", 0.0)),
-			"ach": max(0.0, float(entry.get("ach", ach_default)))
+			"ach": _clamp_ach(float(entry.get("ach", ach_default)))
 		})
 
 	ach_schedule.sort_custom(func(a: Dictionary, b: Dictionary): return float(a["start_time"]) < float(b["start_time"]))
 	ach_schedule_idx = 0
-	manual_override_until_next_schedule = false
 	_apply_schedule_until_time(Global.current_time_s())
 	_refresh_label()
 
 func adjust_ach(delta: float):
-	ach_current = max(0.0, ach_current + delta)
-	manual_override_until_next_schedule = true
+	ach_current = _clamp_ach(ach_current + delta)
+	ach_last_update_source = ACH_SOURCE_MANUAL
+	health_manual_override = health_mode_enabled
 	_refresh_label()
+
+func has_ach_schedule() -> bool:
+	return ach_schedule.size() > 0
+
+func ach_mode_marker() -> String:
+	if health_mode_enabled:
+		return "🄷"
+	return "🅂" if ach_last_update_source == ACH_SOURCE_SCHEDULE else "🄼"
 
 func _physics_process(_delta: float) -> void:
 	if not Global.can_advance_simulation():
 		return
 
-	_apply_schedule_until_time(Global.current_time_s())
+	if not health_mode_enabled:
+		_apply_schedule_until_time(Global.current_time_s())
 
 	var infected_count := 0
 	for pid in occupants:
@@ -163,13 +221,14 @@ func _physics_process(_delta: float) -> void:
 
 func _apply_schedule_until_time(current_time_s: float):
 	while ach_schedule_idx < ach_schedule.size() and current_time_s >= float(ach_schedule[ach_schedule_idx]["start_time"]):
-		if not manual_override_until_next_schedule:
-			ach_current = float(ach_schedule[ach_schedule_idx]["ach"])
-		else:
-			# Manual override lasts until the next schedule boundary.
-			manual_override_until_next_schedule = false
-			ach_current = float(ach_schedule[ach_schedule_idx]["ach"])
+		# Only overwrite ACH when the schedule advances to a newly-due row.
+		# This allows manual +/- changes to persist between scheduled transitions.
+		ach_current = _clamp_ach(float(ach_schedule[ach_schedule_idx]["ach"]))
+		ach_last_update_source = ACH_SOURCE_SCHEDULE
 		ach_schedule_idx += 1
+
+func _clamp_ach(value: float) -> float:
+	return clampf(value, ach_min, ach_max)
 
 func _refresh_label(infected_count: int = -1):
 	if label == null:
@@ -181,7 +240,8 @@ func _refresh_label(infected_count: int = -1):
 	var short_room_name := _short_room_name(room_id)
 	var selection_marker := "▶ " if is_selected else ""
 	var alert_symbol := "◆" if alert_indicator_active else "◇"
-	label.text = "%s%s %s\nACH: %.1f  I: %d\nV: %.2f" % [selection_marker, alert_symbol, short_room_name, ach_current, infected_count, viral_load]
+	var ach_mode := ach_mode_marker()
+	label.text = "%s%s %s\nACH: %s %.1f  I: %d\nV: %.2f" % [selection_marker, alert_symbol, short_room_name, ach_mode, ach_current, infected_count, viral_load]
 	label.add_theme_color_override("font_color", _room_vl_color(viral_load))
 	_apply_label_selection_style()
 
@@ -261,10 +321,12 @@ func _infected_count_now() -> int:
 
 func _on_body_entered(body: Node2D):
 	if body is Person:
-		var person: Person = body
+		var person = body
 		occupants[person.pid] = person
+		person.enter_room(self)
 
 func _on_body_exited(body: Node2D):
 	if body is Person:
-		var person: Person = body
+		var person = body
 		occupants.erase(person.pid)
+		person.exit_room(self)
