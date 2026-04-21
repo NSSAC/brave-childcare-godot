@@ -1,0 +1,224 @@
+{
+  "source": "/Users/brylew/github/brave-childcare-godot/analysis/day_schedule_roomdescription.csv",
+  "rooms": [
+    "CommonRoom",
+    "Entrance",
+    "InfantRoom",
+    "Kitchen_Office",
+    "OlderToddlerRoom",
+    "PreschoolRoom",
+    "YoungerToddlerRoom"
+  ],
+  "schedule": [
+    {
+      "start_time": 23400,
+      "end_time": 28800,
+      "time_label": "6:30-8:00",
+      "descriptions": {
+        "InfantRoom": "Arrival/Freeplay",
+        "OlderToddlerRoom": "Arrival/Freeplay",
+        "YoungerToddlerRoom": "Arrival/Freeplay",
+        "PreschoolRoom": "Arrival/Freeplay",
+        "Entrance": "Arrivals",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 28800,
+      "end_time": 30600,
+      "time_label": "8:00-8:30",
+      "descriptions": {
+        "InfantRoom": "Diapers",
+        "OlderToddlerRoom": "Breakfast",
+        "YoungerToddlerRoom": "Breakfast",
+        "PreschoolRoom": "Breakfast",
+        "Entrance": "Arrivals",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 30600,
+      "end_time": 32400,
+      "time_label": "8:30-9:00",
+      "descriptions": {
+        "InfantRoom": "Feeding",
+        "OlderToddlerRoom": "Diapers",
+        "YoungerToddlerRoom": "Diapers/Potty",
+        "PreschoolRoom": "Potty",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 32400,
+      "end_time": 34200,
+      "time_label": "9:00-9:30",
+      "descriptions": {
+        "InfantRoom": "Morning nap",
+        "OlderToddlerRoom": "Morning circle",
+        "YoungerToddlerRoom": "Morning circle",
+        "PreschoolRoom": "Morning circle",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 34200,
+      "end_time": 36000,
+      "time_label": "9:30-10:00",
+      "descriptions": {
+        "InfantRoom": "Morning nap",
+        "OlderToddlerRoom": "Small groups",
+        "YoungerToddlerRoom": "Small groups",
+        "PreschoolRoom": "Guided centers",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 36000,
+      "end_time": 37800,
+      "time_label": "10:00-10:30",
+      "descriptions": {
+        "InfantRoom": "Tummy time",
+        "OlderToddlerRoom": "Outside play",
+        "YoungerToddlerRoom": "Outside play",
+        "PreschoolRoom": "Outside play",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 37800,
+      "end_time": 39600,
+      "time_label": "10:30-11:00",
+      "descriptions": {
+        "InfantRoom": "Cribs & Swings",
+        "OlderToddlerRoom": "Story time",
+        "YoungerToddlerRoom": "Story time",
+        "PreschoolRoom": "Story time",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 39600,
+      "end_time": 41400,
+      "time_label": "11:00-11:30",
+      "descriptions": {
+        "InfantRoom": "Diapers",
+        "OlderToddlerRoom": "Lunch",
+        "YoungerToddlerRoom": "Lunch",
+        "PreschoolRoom": "Lunch",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 41400,
+      "end_time": 43200,
+      "time_label": "11:30-12:00",
+      "descriptions": {
+        "InfantRoom": "Feeding",
+        "OlderToddlerRoom": "Diapers/Potty/Lullabies",
+        "YoungerToddlerRoom": "Diapers/Potty/Lullabies",
+        "PreschoolRoom": "Potty",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 43200,
+      "end_time": 52200,
+      "time_label": "12:00-2:30",
+      "descriptions": {
+        "InfantRoom": "Nap time",
+        "OlderToddlerRoom": "Nap time",
+        "YoungerToddlerRoom": "Nap time",
+        "PreschoolRoom": "Nap time",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 52200,
+      "end_time": 54000,
+      "time_label": "2:30-3:00",
+      "descriptions": {
+        "InfantRoom": "Diapers",
+        "OlderToddlerRoom": "Diapers/Potty/Snack",
+        "YoungerToddlerRoom": "Diapers/Potty/Snack",
+        "PreschoolRoom": "Potty/Snack",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 54000,
+      "end_time": 55800,
+      "time_label": "3:00-3:30",
+      "descriptions": {
+        "InfantRoom": "Feeding",
+        "OlderToddlerRoom": "Afternoon circle",
+        "YoungerToddlerRoom": "Afternoon circle",
+        "PreschoolRoom": "Arts & Crafts",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 55800,
+      "end_time": 57600,
+      "time_label": "3:30-4:00",
+      "descriptions": {
+        "InfantRoom": "Cribs & Swings",
+        "OlderToddlerRoom": "Outside play",
+        "YoungerToddlerRoom": "Outside play",
+        "PreschoolRoom": "Outside play",
+        "Entrance": "Normal Business",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 57600,
+      "end_time": 59400,
+      "time_label": "4:00-4:30",
+      "descriptions": {
+        "InfantRoom": "Diapers/Music",
+        "OlderToddlerRoom": "Diapers/Music",
+        "YoungerToddlerRoom": "Potty/Music",
+        "PreschoolRoom": "Potty/Music",
+        "Entrance": "Departures",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    },
+    {
+      "start_time": 59400,
+      "end_time": 61200,
+      "time_label": "4:30-5:00",
+      "descriptions": {
+        "InfantRoom": "Freeplay/Departure",
+        "OlderToddlerRoom": "Freeplay/Departure",
+        "YoungerToddlerRoom": "Freeplay/Departure",
+        "PreschoolRoom": "Freeplay/Departure",
+        "Entrance": "Departures",
+        "Kitchen_Office": "Normal Business",
+        "CommonRoom": "Play Time"
+      }
+    }
+  ]
+}
