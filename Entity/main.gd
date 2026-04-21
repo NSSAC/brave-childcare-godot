@@ -11,12 +11,36 @@ extends Node
 @onready var title_screen: CanvasLayer = %TitleScreen
 @onready var map: Node2D = %Map
 @onready var camera_2d: Camera2D = %Camera2D
-@onready var current_time_label: Label = %CurrentTimeLabel
 @onready var end_simulation_button: Button = %EndSimulationButton
 @onready var last_run_summary_label: Label = %LastRunSummaryLabel
 @onready var room_panel: PanelContainer = %RoomPanel
 @onready var room_panel_text: RichTextLabel = %RoomPanelText
 @onready var room_panel_margin: MarginContainer = $Map/CanvasLayer/RoomPanel/MarginContainer
+@onready var panel_sensor_value: Label = %PanelSensorValue
+@onready var panel_alert_count_matrix: Control = %PanelAlertCountMatrix
+@onready var panel_ach_gauge: Control = %PanelAchGauge
+@onready var panel_vl_gauge: Control = %PanelViralLoadGauge
+@onready var panel_alert_lamp: Panel = %PanelAlertLamp
+@onready var panel_room_cards: VBoxContainer = %PanelRoomCards
+@onready var panel_prev_room_button: Button = %PanelPrevRoomButton
+@onready var panel_next_room_button: Button = %PanelNextRoomButton
+@onready var panel_ach_down_button: Button = %PanelAchDownButton
+@onready var panel_ach_up_button: Button = %PanelAchUpButton
+@onready var panel_health_toggle_button: Button = %PanelHealthToggleButton
+@onready var panel_speed_down_button: Button = %PanelSpeedDownButton
+@onready var panel_speed_up_button: Button = %PanelSpeedUpButton
+@onready var panel_pause_button: Button = %PanelPauseButton
+@onready var panel_total_cost_value: Label = %PanelTotalCostValue
+@onready var panel_ach_rate_value: Label = %PanelAchRateValue
+@onready var panel_current_hourly_cost_value: Label = %PanelCurrentHourlyCostValue
+@onready var panel_exposure_avg_value: Label = %PanelExposureAvgValue
+@onready var panel_exposure_max_value: Label = %PanelExposureMaxValue
+@onready var panel_exposure_total_value: Label = %PanelExposureTotalValue
+@onready var panel_ach_control_value: Label = %PanelAchControlValue
+@onready var panel_sim_state_clock: Control = %PanelSimStateClock
+@onready var panel_sim_state_time_value: Label = %PanelSimStateTimeValue
+@onready var panel_sim_state_fps_value: Label = %PanelSimStateFpsValue
+@onready var panel_sim_state_speed_value: Label = %PanelSimStateSpeedValue
 
 @export var generic_person_scene: PackedScene = preload("res://Entity/generic_person.tscn")
 @export var infant_boy_scene: PackedScene = preload("res://Entity/Infant_Boy.tscn")
@@ -29,7 +53,8 @@ extends Node
 @export var careprovider_scene_2: PackedScene = preload("res://Entity/CareProvider2.tscn")
 @onready var save_timer: Timer = %SaveTimer
 
-@export var default_config_path: String = "res://Sample Inputs/config_childcare.json"
+@export var default_config_path: String = "res://inputs/config_childcare.json"
+@export var default_room_description_file: String = "res://inputs/schedule_rooms.json"
 @export var room_alert_threshold_vl: float = 400.0
 @export var room_alert_check_interval_s: float = 45.0 * 60.0
 @export var room_panel_refresh_interval_s: float = 0.5
@@ -55,6 +80,9 @@ extends Node
 @export var room_panel_line_separation_max: int = 8
 @export var room_panel_margin_min: int = 12
 @export var room_panel_margin_max: int = 24
+@export var panel_vl_gauge_max: float = 800.0
+@export var panel_ach_gauge_max: float = 8.0
+@export var panel_alert_lamp_pulse_hz: float = 1.6
 
 var room_nodes: Array = []
 var selected_room_idx: int = -1
@@ -72,6 +100,12 @@ var health_mode_max_ach: float = 6.0
 var health_mode_min_ach: float = 0.0
 var active_config_path: String = ""
 var active_config_for_archive: Dictionary = {}
+var panel_alert_lamp_style_on: StyleBoxFlat
+var panel_alert_lamp_style_off: StyleBoxFlat
+var panel_room_card_nodes: Array = []
+var panel_alert_lamp_is_alerting: bool = false
+var panel_value_cache: Dictionary = {}
+var room_description_rows: Array = []
 
 const ROOM_ACH_STEP: float = 1.0
 const ROOM_VL_TREND_EPSILON: float = 0.01
@@ -154,12 +188,12 @@ func _update_room_panel_layout() -> void:
 
 	room_panel.anchor_left = 1.0
 	room_panel.anchor_right = 1.0
-	room_panel.anchor_top = 0.5
-	room_panel.anchor_bottom = 0.5
+	room_panel.anchor_top = 0.0
+	room_panel.anchor_bottom = 1.0
 	room_panel.offset_left = -room_panel_screen_margin - panel_width
 	room_panel.offset_right = -room_panel_screen_margin
-	room_panel.offset_top = -panel_height * 0.5
-	room_panel.offset_bottom = panel_height * 0.5
+	room_panel.offset_top = room_panel_screen_margin
+	room_panel.offset_bottom = -room_panel_screen_margin
 
 	var height_scale := clampf(inverse_lerp(720.0, 1600.0, viewport_size.y), 0.0, 1.0)
 	var width_scale_start: float = minf(room_panel_width_scale_start_px, room_panel_width_scale_end_px)
@@ -167,11 +201,15 @@ func _update_room_panel_layout() -> void:
 	var width_scale := clampf(inverse_lerp(width_scale_start, width_scale_end, panel_width), 0.0, 1.0)
 	var ui_scale: float = minf(height_scale, width_scale)
 	var target_font_size := int(round(lerpf(room_panel_font_size_min, room_panel_font_size_max, ui_scale)))
+	var caption_font_size := int(clampf(round(target_font_size * 0.48), 13.0, 22.0))
+	var section_font_size := int(clampf(round(target_font_size * 0.62), 18.0, 30.0))
+	var panel_title_font_size := int(clampf(round(target_font_size * 0.78), 22.0, 38.0))
+	var value_font_size := int(clampf(round(target_font_size * 0.68), 16.0, 32.0))
 	var line_separation := int(round(lerpf(room_panel_line_separation_min, room_panel_line_separation_max, ui_scale)))
 	var margin_size := int(round(lerpf(room_panel_margin_min, room_panel_margin_max, ui_scale)))
 
-	room_panel_text.add_theme_font_size_override("normal_font_size", target_font_size)
-	room_panel_text.add_theme_font_size_override("bold_font_size", target_font_size)
+	room_panel_text.add_theme_font_size_override("normal_font_size", value_font_size)
+	room_panel_text.add_theme_font_size_override("bold_font_size", value_font_size)
 	room_panel_text.add_theme_constant_override("line_separation", line_separation)
 	room_panel_text.scroll_active = viewport_size.y < 900.0 or viewport_size.x < 1500.0
 
@@ -179,6 +217,332 @@ func _update_room_panel_layout() -> void:
 	room_panel_margin.add_theme_constant_override("margin_top", margin_size)
 	room_panel_margin.add_theme_constant_override("margin_right", margin_size)
 	room_panel_margin.add_theme_constant_override("margin_bottom", margin_size)
+
+	var value_labels: Array[Label] = [
+		panel_sensor_value,
+		panel_total_cost_value,
+		panel_ach_rate_value,
+		panel_current_hourly_cost_value,
+		panel_exposure_avg_value,
+		panel_exposure_max_value,
+		panel_exposure_total_value,
+		panel_ach_control_value,
+		panel_sim_state_time_value,
+		panel_sim_state_fps_value,
+		panel_sim_state_speed_value,
+	]
+	for label in value_labels:
+		if is_instance_valid(label):
+			label.add_theme_font_size_override("font_size", value_font_size)
+
+	var section_label_paths := [
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/PanelTitle",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/ClockBox/StateTitle",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/RoomCardsLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ActionsLabel",
+	]
+	for node_path in section_label_paths:
+		var section_label = get_node_or_null(node_path)
+		if section_label is Label:
+			var label := section_label as Label
+			label.add_theme_font_size_override("font_size", panel_title_font_size if node_path.ends_with("/PanelTitle") else section_font_size)
+			label.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0, 1.0))
+
+	var caption_paths := [
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/StatsBox/SimTimeLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/StatsBox/SimSensorLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/StatsBox/SimFpsLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/StatsBox/SimSpeedStateLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox/AlertCounterTitle",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox/AlertLampRow/AlertLampLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox/AchGaugeLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/ViralDialVBox/ViralLoadGaugeLabel",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardAchRate/Margin/VBox/Title",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardCurrentHourly/Margin/VBox/Title",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardTotalCost/Margin/VBox/Title",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureAvg/Margin/VBox/Title",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureMax/Margin/VBox/Title",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureTotal/Margin/VBox/Title",
+		"Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AchControlCard/Margin/VBox/Title",
+	]
+	for node_path in caption_paths:
+		var caption = get_node_or_null(node_path)
+		if caption is Label:
+			(caption as Label).add_theme_font_size_override("font_size", caption_font_size)
+
+func _update_simulation_state_card() -> void:
+	var sim_time_s: float = Global.current_time_s()
+	var sim_h: int = int(sim_time_s / 3600.0)
+	var sim_m: int = int((sim_time_s - float(sim_h) * 3600.0) / 60.0)
+	_set_panel_value(panel_sim_state_time_value, "%02d:%02d" % [sim_h, sim_m], Color(0.9, 0.95, 1, 1))
+	_set_panel_value(panel_sensor_value, _next_sensor_reading_text().trim_prefix("Next Sensor Reading: "), Color(0.86, 0.95, 1, 1))
+	_set_panel_value(panel_sim_state_fps_value, str(Engine.get_frames_per_second()), Color(0.88, 0.97, 1, 1))
+	_set_panel_value(panel_sim_state_speed_value, "x%.2f" % Global.sim_speed_scale, Color(0.8, 0.93, 1, 1))
+	if panel_alert_count_matrix != null and panel_alert_count_matrix.has_method("set_value"):
+		panel_alert_count_matrix.call("set_value", room_alert_trigger_count_total)
+	if panel_sim_state_clock != null and panel_sim_state_clock.has_method("set_time_seconds"):
+		panel_sim_state_clock.call("set_time_seconds", sim_time_s)
+
+func _set_panel_value(label: Label, text_value: String, flash_color: Color = Color(1, 1, 1, 1)) -> void:
+	if label == null:
+		return
+	var key := str(label.get_path())
+	var previous := str(panel_value_cache.get(key, ""))
+	if previous == text_value:
+		return
+	panel_value_cache[key] = text_value
+	label.text = text_value
+	label.modulate = flash_color
+	var tween := create_tween()
+	tween.tween_property(label, "modulate", Color(1, 1, 1, 1), 0.24).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+func _build_alert_lamp_style(fill_color: Color, border_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill_color
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = border_color
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_right = 12
+	style.corner_radius_bottom_left = 12
+	return style
+
+func _room_card_style(selected: bool, alerting: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#151b22") if not selected else Color("#1d2833")
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color("#2f3d4a")
+	if selected:
+		style.border_width_left = 2
+		style.border_width_top = 2
+		style.border_width_right = 2
+		style.border_width_bottom = 2
+		style.border_color = Color("#5ca9ff")
+	if alerting:
+		style.border_color = Color("#b53030")
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_right = 8
+	style.corner_radius_bottom_left = 8
+	return style
+
+func _ensure_room_card_count(target_count: int) -> void:
+	if panel_room_cards == null:
+		return
+
+	while panel_room_card_nodes.size() < target_count:
+		var card := PanelContainer.new()
+		card.custom_minimum_size = Vector2(0.0, 82.0)
+
+		var margin := MarginContainer.new()
+		margin.add_theme_constant_override("margin_left", 10)
+		margin.add_theme_constant_override("margin_top", 8)
+		margin.add_theme_constant_override("margin_right", 10)
+		margin.add_theme_constant_override("margin_bottom", 8)
+
+		var label := RichTextLabel.new()
+		label.bbcode_enabled = true
+		label.fit_content = true
+		label.scroll_active = false
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.add_theme_font_size_override("normal_font_size", 20)
+		label.add_theme_font_size_override("bold_font_size", 20)
+		label.add_theme_constant_override("line_separation", 2)
+
+		margin.add_child(label)
+		card.add_child(margin)
+		panel_room_cards.add_child(card)
+		panel_room_card_nodes.append(card)
+
+	while panel_room_card_nodes.size() > target_count:
+		var node = panel_room_card_nodes.pop_back()
+		if is_instance_valid(node):
+			node.queue_free()
+
+func _update_room_cards(selected_room) -> void:
+	if panel_room_cards == null:
+		return
+
+	if room_nodes.is_empty():
+		_ensure_room_card_count(0)
+		return
+
+	_ensure_room_card_count(room_nodes.size())
+
+	for idx in range(room_nodes.size()):
+		var room = room_nodes[idx]
+		var card: PanelContainer = panel_room_card_nodes[idx]
+		var margin: MarginContainer = card.get_child(0)
+		var label: RichTextLabel = margin.get_child(0)
+		var is_selected := idx == selected_room_idx
+		var trend_symbol := _room_vl_trend_symbol(room.room_id, room.viral_load)
+		var is_alerting := _room_alert_state(room)
+		var vl_color := _room_vl_color(room.viral_load)
+		var mode_text := _room_ach_mode_marker(room)
+		var room_description := _room_schedule_description(room)
+		if room.has_method("set_schedule_description"):
+			room.call("set_schedule_description", room_description)
+
+		card.add_theme_stylebox_override("panel", _room_card_style(is_selected, is_alerting))
+
+		var title_line := _short_room_name(room.room_id)
+		if room_description != "":
+			title_line += " - " + room_description
+		var title_prefix := "[b]" + ("● " if is_selected else "○ ") + title_line + "[/b]"
+		var alert_text := "[color=#ff6b6b]ALERT[/color]" if is_alerting else "[color=#9ba7b4]Normal[/color]"
+		var details := "ACH %s %.1f  |  VL [color=#%s]%.1f %s[/color]" % [mode_text, room.ach_current, vl_color.to_html(false), room.viral_load, trend_symbol]
+		label.text = "%s\n%s  |  %s" % [title_prefix, details, alert_text]
+
+func _update_alert_lamp_visual(now_s: float) -> void:
+	if panel_alert_lamp == null:
+		return
+
+	if not panel_alert_lamp_is_alerting:
+		if panel_alert_lamp_style_off != null:
+			panel_alert_lamp.add_theme_stylebox_override("panel", panel_alert_lamp_style_off)
+		return
+
+	var pulse := 0.72 + 0.28 * sin(now_s * TAU * panel_alert_lamp_pulse_hz)
+	var r := clampf(0.7 + 0.3 * pulse, 0.0, 1.0)
+	var g := clampf(0.06 + 0.07 * pulse, 0.0, 1.0)
+	var b := clampf(0.06 + 0.07 * pulse, 0.0, 1.0)
+	var fill := Color(r, g, b, 1.0)
+	var border := Color(clampf(0.45 + 0.25 * pulse, 0.0, 1.0), 0.08, 0.08, 1.0)
+	panel_alert_lamp.add_theme_stylebox_override("panel", _build_alert_lamp_style(fill, border))
+
+func _refresh_panel_controls_state() -> void:
+	if panel_health_toggle_button != null:
+		panel_health_toggle_button.text = "Health: ON" if health_mode_active else "Health: OFF"
+	if panel_pause_button != null:
+		panel_pause_button.text = "Resume" if Global.is_simulation_paused else "Pause"
+		if Global.is_simulation_paused:
+			panel_pause_button.add_theme_color_override("font_color", Color("#fff0bf"))
+			panel_pause_button.add_theme_color_override("font_hover_color", Color("#fff7de"))
+		else:
+			panel_pause_button.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+			panel_pause_button.add_theme_color_override("font_hover_color", Color(0.93, 0.96, 1, 1))
+
+	var has_rooms: bool = room_nodes.size() > 0
+	var sim_active: bool = Global.is_simulation_active
+
+	if panel_prev_room_button != null:
+		panel_prev_room_button.disabled = not has_rooms
+	if panel_next_room_button != null:
+		panel_next_room_button.disabled = not has_rooms
+	if panel_ach_down_button != null:
+		panel_ach_down_button.disabled = not has_rooms
+	if panel_ach_up_button != null:
+		panel_ach_up_button.disabled = not has_rooms
+	if panel_health_toggle_button != null:
+		panel_health_toggle_button.disabled = not sim_active
+	if panel_speed_down_button != null:
+		panel_speed_down_button.disabled = not sim_active
+	if panel_speed_up_button != null:
+		panel_speed_up_button.disabled = not sim_active
+	if panel_pause_button != null:
+		panel_pause_button.disabled = not sim_active
+
+func _on_panel_prev_room_pressed() -> void:
+	_cycle_selected_room(-1)
+
+func _on_panel_next_room_pressed() -> void:
+	_cycle_selected_room(1)
+
+func _on_panel_ach_down_pressed() -> void:
+	_adjust_selected_room_ach(-ROOM_ACH_STEP)
+
+func _on_panel_ach_up_pressed() -> void:
+	_adjust_selected_room_ach(ROOM_ACH_STEP)
+
+func _on_panel_health_toggle_pressed() -> void:
+	if not Global.is_simulation_active:
+		return
+	_set_health_mode(not health_mode_active)
+	_refresh_panel_controls_state()
+
+func _on_panel_speed_down_pressed() -> void:
+	if not Global.is_simulation_active:
+		return
+	_adjust_sim_speed_scale(-_sim_speed_step_size())
+
+func _on_panel_speed_up_pressed() -> void:
+	if not Global.is_simulation_active:
+		return
+	_adjust_sim_speed_scale(_sim_speed_step_size())
+
+func _set_pause_state(paused: bool) -> void:
+	Global.is_simulation_paused = paused
+	if Global.is_simulation_paused:
+		save_timer.stop()
+	else:
+		save_timer.start()
+	_refresh_panel_controls_state()
+
+func _toggle_pause() -> void:
+	if not Global.is_simulation_active:
+		return
+	_set_pause_state(not Global.is_simulation_paused)
+
+func _on_panel_pause_pressed() -> void:
+	_toggle_pause()
+
+func _init_room_panel_widgets() -> void:
+	if panel_ach_gauge != null:
+		if panel_ach_gauge.has_method("set_range"):
+			panel_ach_gauge.call("set_range", 0.0, panel_ach_gauge_max)
+		if panel_ach_gauge.has_method("set_style"):
+			panel_ach_gauge.call("set_style", "knob")
+		if panel_ach_gauge.has_method("set_current_value"):
+			panel_ach_gauge.call("set_current_value", 0.0)
+	if panel_vl_gauge != null:
+		if panel_vl_gauge.has_method("set_range"):
+			panel_vl_gauge.call("set_range", 0.0, panel_vl_gauge_max)
+		if panel_vl_gauge.has_method("set_style"):
+			panel_vl_gauge.call("set_style", "speedometer")
+		if panel_vl_gauge.has_method("set_current_value"):
+			panel_vl_gauge.call("set_current_value", 0.0)
+
+	panel_alert_lamp_style_off = _build_alert_lamp_style(Color("#6a6d73"), Color("#2e3033"))
+	panel_alert_lamp_style_on = _build_alert_lamp_style(Color("#ff3b3b"), Color("#7a0b0b"))
+	if panel_alert_lamp != null:
+		panel_alert_lamp.add_theme_stylebox_override("panel", panel_alert_lamp_style_off)
+
+func _update_room_panel_widgets(selected_room, is_alerting: bool) -> void:
+	panel_alert_lamp_is_alerting = is_alerting
+	if selected_room == null:
+		if panel_ach_gauge != null:
+			if panel_ach_gauge.has_method("set_current_value"):
+				panel_ach_gauge.call("set_current_value", 0.0)
+		if panel_vl_gauge != null:
+			if panel_vl_gauge.has_method("set_current_value"):
+				panel_vl_gauge.call("set_current_value", 0.0)
+		_update_alert_lamp_visual(Global.current_time_s())
+	else:
+		if panel_ach_gauge != null:
+			if panel_ach_gauge.has_method("set_current_value"):
+				panel_ach_gauge.call("set_current_value", clampf(selected_room.ach_current, 0.0, panel_ach_gauge_max))
+		if panel_vl_gauge != null:
+			if panel_vl_gauge.has_method("set_current_value"):
+				panel_vl_gauge.call("set_current_value", clampf(selected_room.viral_load, 0.0, panel_vl_gauge_max))
+		_update_alert_lamp_visual(Global.current_time_s())
+
+	var exposure_stats: Dictionary = _exposure_stats()
+	var current_hourly_cost: float = _current_room_ach_total() * Global.room_ach_cost_per_ach_hour
+	_set_panel_value(panel_total_cost_value, "$%.2f" % Global.room_ach_total_cost, Color(1, 0.94, 0.82, 1))
+	_set_panel_value(panel_ach_rate_value, "$%.2f/hr" % Global.room_ach_cost_per_ach_hour, Color(1, 0.94, 0.82, 1))
+	_set_panel_value(panel_current_hourly_cost_value, "$%.2f/hr" % current_hourly_cost, Color(1, 0.94, 0.82, 1))
+	_set_panel_value(panel_exposure_avg_value, "%.2f" % float(exposure_stats["mean"]), Color(0.8, 1, 0.9, 1))
+	_set_panel_value(panel_exposure_max_value, "%.2f" % float(exposure_stats["max"]), Color(1, 0.84, 0.84, 1))
+	_set_panel_value(panel_exposure_total_value, "%.2f" % float(exposure_stats["total"]), Color(0.78, 0.93, 1, 1))
+	_set_panel_value(panel_ach_control_value, "Health (🄷)" if health_mode_active else "Schedule/Manual", Color(0.87, 0.89, 1, 1))
+	_update_simulation_state_card()
 
 func _derive_room_output_path(sim_output_file: String) -> String:
 	if sim_output_file.ends_with(".json"):
@@ -525,6 +889,7 @@ func load_config(file: String):
 	var exposure_output_file: String = str(config_data.get("exposure_output_file", ""))
 	var stats_output_file: String = str(config_data.get("stats_output_file", ""))
 	var room_ach_file: String = str(config_data.get("room_ach_file", ""))
+	var room_description_file: String = str(config_data.get("room_description_file", default_room_description_file))
 	var config_run_number: int = maxi(int(config_data.get("run_number", 0)), 0)
 	var config_health_baseline: float = float(config_data.get("health_mode_baseline_ach", config_data.get("baseline_ach", 3.0)))
 	var config_health_max: float = float(config_data.get("health_mode_max_ach", config_data.get("max_ach", 6.0)))
@@ -571,6 +936,8 @@ func load_config(file: String):
 	exposure_output_file = _with_run_id_suffix(exposure_output_file, Global.run_id)
 	if room_ach_file != "" and not room_ach_file.is_absolute_path():
 		room_ach_file = file.get_base_dir().path_join(room_ach_file)
+	if room_description_file != "" and not room_description_file.begins_with("res://") and not room_description_file.begins_with("user://") and not room_description_file.is_absolute_path():
+		room_description_file = file.get_base_dir().path_join(room_description_file)
 
 	_clear_simulation_persons()
 
@@ -602,6 +969,10 @@ func load_config(file: String):
 
 	if room_ach_file != "":
 		load_room_ach_schedule(room_ach_file)
+	if room_description_file != "":
+		load_room_description_schedule(room_description_file)
+	else:
+		room_description_rows.clear()
 
 	_fit_camera_to_map_contents()
 
@@ -648,6 +1019,91 @@ func load_room_ach_schedule(file: String):
 			print("Room ACH schedule references unknown room_id: ", room_id)
 
 	print("Loaded ACH rows for ", rows_by_room.size(), " rooms")
+
+func _normalize_room_name_key(value: String) -> String:
+	var normalized := value.strip_edges().to_lower()
+	normalized = normalized.replace("\u00a0", "")
+	normalized = normalized.replace("_", "")
+	normalized = normalized.replace("-", "")
+	normalized = normalized.replace(" ", "")
+	return normalized
+
+func load_room_description_schedule(file: String) -> void:
+	room_description_rows.clear()
+	if not FileAccess.file_exists(file):
+		print("Room description schedule file not found: ", file)
+		return
+
+	print("Loading room description schedule from file: ", file)
+	var description_file := FileAccess.open(file, FileAccess.READ)
+	if description_file == null:
+		print("Unable to open room description schedule file: ", file)
+		return
+
+	var parsed_data = JSON.parse_string(description_file.get_as_text())
+	if not parsed_data is Dictionary:
+		print("Room description schedule must be a JSON object with a 'schedule' array")
+		return
+
+	var data: Dictionary = parsed_data
+	if not data.has("schedule") or not data["schedule"] is Array:
+		print("Room description schedule missing 'schedule' array")
+		return
+
+	for row in data["schedule"]:
+		if not row is Dictionary:
+			continue
+		var row_dict: Dictionary = row
+		var start_time := float(row_dict.get("start_time", 0.0))
+		var end_time := float(row_dict.get("end_time", start_time))
+		var descriptions_raw: Dictionary = row_dict.get("descriptions", {})
+		var descriptions: Dictionary = {}
+		for room_key in descriptions_raw.keys():
+			var normalized_key := _normalize_room_name_key(str(room_key))
+			if normalized_key != "":
+				descriptions[normalized_key] = str(descriptions_raw[room_key]).strip_edges()
+		room_description_rows.append({
+			"start_time": start_time,
+			"end_time": end_time,
+			"descriptions": descriptions,
+		})
+
+	print("Loaded room description rows: ", room_description_rows.size())
+
+func _room_schedule_description(room) -> String:
+	if room_description_rows.is_empty():
+		return ""
+
+	var now_s := Global.current_time_s()
+	var room_keys: Array[String] = []
+	room_keys.append(_normalize_room_name_key(str(room.room_id)))
+	room_keys.append(_normalize_room_name_key(_short_room_name(str(room.room_id))))
+	if room.has_method("display_name"):
+		room_keys.append(_normalize_room_name_key(str(room.display_name())))
+
+	for row in room_description_rows:
+		var start_time := float(row.get("start_time", 0.0))
+		var end_time := float(row.get("end_time", start_time))
+		var in_window := now_s >= start_time and now_s < end_time
+		if end_time < start_time:
+			in_window = now_s >= start_time or now_s < end_time
+		if not in_window:
+			continue
+		var descriptions: Dictionary = row.get("descriptions", {})
+		for key in room_keys:
+			if key != "" and descriptions.has(key):
+				return str(descriptions[key])
+		for desc_key in descriptions.keys():
+			var normalized_desc_key := _normalize_room_name_key(str(desc_key))
+			if normalized_desc_key == "":
+				continue
+			for key in room_keys:
+				if key == "":
+					continue
+				if (key.length() >= 6 and normalized_desc_key.contains(key)) or (normalized_desc_key.length() >= 6 and key.contains(normalized_desc_key)):
+					return str(descriptions[desc_key])
+
+	return ""
 
 func start_simulation(file: String):
 	Global.player_name = player_name_input.text.strip_edges()
@@ -724,7 +1180,6 @@ func _end_simulation(reason: String = "manual") -> void:
 	_set_health_mode(false)
 	_refresh_last_run_summary(Global.stats_output_file_path)
 	_update_room_panel(true)
-	current_time_label.text = "Current Time: 0.0"
 
 func _on_save_object_button_pressed():
 	object_file_dialog.show()
@@ -753,6 +1208,7 @@ func _exposure_stats() -> Dictionary:
 	if Global.all_persons.is_empty():
 		return {
 			"count": 0,
+			"total": 0.0,
 			"mean": 0.0,
 			"max": 0.0,
 			"max_pid": ""
@@ -777,6 +1233,7 @@ func _exposure_stats() -> Dictionary:
 
 	return {
 		"count": count,
+		"total": total,
 		"mean": total / float(max(count, 1)),
 		"max": max_value,
 		"max_pid": max_pid
@@ -862,6 +1319,24 @@ func _ready() -> void:
 	save_timer.timeout.connect(_on_save_timer_timeout)
 	save_timer.wait_time = Global.save_every_s
 	get_viewport().size_changed.connect(_update_room_panel_layout)
+	_init_room_panel_widgets()
+	if panel_prev_room_button != null:
+		panel_prev_room_button.pressed.connect(_on_panel_prev_room_pressed)
+	if panel_next_room_button != null:
+		panel_next_room_button.pressed.connect(_on_panel_next_room_pressed)
+	if panel_ach_down_button != null:
+		panel_ach_down_button.pressed.connect(_on_panel_ach_down_pressed)
+	if panel_ach_up_button != null:
+		panel_ach_up_button.pressed.connect(_on_panel_ach_up_pressed)
+	if panel_health_toggle_button != null:
+		panel_health_toggle_button.pressed.connect(_on_panel_health_toggle_pressed)
+	if panel_speed_down_button != null:
+		panel_speed_down_button.pressed.connect(_on_panel_speed_down_pressed)
+	if panel_speed_up_button != null:
+		panel_speed_up_button.pressed.connect(_on_panel_speed_up_pressed)
+	if panel_pause_button != null:
+		panel_pause_button.pressed.connect(_on_panel_pause_pressed)
+	_refresh_panel_controls_state()
 
 	for object in get_tree().get_nodes_in_group("smart_object"):
 		var oid: String = object.get_path()
@@ -949,11 +1424,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("pause") and not event.is_echo():
-		Global.is_simulation_paused = not Global.is_simulation_paused
-		if Global.is_simulation_paused:
-			save_timer.stop()
-		else:
-			save_timer.start()
+		_toggle_pause()
 		get_viewport().set_input_as_handled()
 
 func _cycle_selected_room(direction: int = 1):
@@ -1080,7 +1551,6 @@ func _room_alert_state(room) -> bool:
 	var room_id: String = room.room_id
 	var now_s := Global.current_time_s()
 	var should_evaluate := not room_alert_active.has(room_id)
-	var previous_state: bool = bool(room_alert_active.get(room_id, false))
 	if not should_evaluate:
 		var last_eval := float(room_alert_last_eval_s.get(room_id, -INF))
 		if room_alert_check_interval_s <= 0.0 or now_s - last_eval >= room_alert_check_interval_s:
@@ -1089,7 +1559,7 @@ func _room_alert_state(room) -> bool:
 	if should_evaluate:
 		var new_state: bool = room.viral_load >= room_alert_threshold_vl
 		room_alert_active[room_id] = new_state
-		if new_state and not previous_state:
+		if new_state:
 			room_alert_trigger_count_total += 1
 			var per_room_count: int = int(room_alert_trigger_count_by_room.get(room_id, 0))
 			room_alert_trigger_count_by_room[room_id] = per_room_count + 1
@@ -1170,49 +1640,26 @@ func _update_room_panel(force_update: bool = false) -> void:
 	room_panel_next_update_s = now_s + room_panel_refresh_interval_s
 
 	if room_nodes.is_empty():
-		room_panel_text.text = "Rooms\n(no rooms found)"
+		room_panel_text.text = "[b]Panel Notes[/b]\nRun the sim to enable controls and room cards."
+		_ensure_room_card_count(0)
+		_update_room_panel_widgets(null, false)
+		_refresh_panel_controls_state()
 		return
 
-	var lines: Array[String] = []
-	lines.append("[center][b]Rooms[/b] (R next, E prev, +/- ACH, H health mode, S faster, D slower)[/center]")
-	lines.append("")
-	lines.append("")
-	lines.append("[table=6]" )
-	lines.append("[cell] [/cell][cell][center] Room [/center][/cell][cell][center] Alert [/center][/cell][cell][center] ACH [/center][/cell][cell][center] VL [/center][/cell][cell][center] Trend [/center][/cell]")
+	var selected_room = null
+	var selected_alert := false
 
 	for idx in range(room_nodes.size()):
 		var room = room_nodes[idx]
-		var row_color := _room_vl_color(room.viral_load)
-		var selector := _room_selector_marker(idx)
-		var room_name_text := "  " + _color_tag_text(_short_room_name(room.room_id), row_color)
-		var trend_symbol := _room_vl_trend_symbol(room.room_id, room.viral_load)
-		var trend_text := _color_tag_text(trend_symbol, row_color)
-		var vl_text := _color_tag_text("%.1f" % room.viral_load, row_color)
-		var alert_light := _room_alert_light(room)
-		var ach_cell := _room_ach_mode_marker(room) + " %.1f" % room.ach_current
-		var cell_values := [selector, room_name_text, alert_light, ach_cell, vl_text, trend_text]
+		var _alert_light := _room_alert_light(room)
 		if idx == selected_room_idx:
-			var prefix := "[b]"
-			var suffix := "[/b]"
-			for c in range(cell_values.size()):
-				cell_values[c] = "%s%s%s" % [prefix, cell_values[c], suffix]
-		lines.append("[cell] %s [/cell][cell] %s [/cell][cell] %s [/cell][cell] %s [/cell][cell] %s [/cell][cell] %s [/cell]" % cell_values)
+			selected_room = room
+			selected_alert = bool(room_alert_active.get(room.room_id, false))
 
-	lines.append("[/table]")
-	lines.append("")
-	lines.append("")
-	lines.append("[b]Total Cost:[/b] $%.2f" % [Global.room_ach_total_cost])
-	lines.append("Rate: $%.2f per ACH-hour" % [Global.room_ach_cost_per_ach_hour])
-	lines.append("")
-	lines.append("[b]Sim Speed:[/b] x%.2f (S faster, D slower)" % Global.sim_speed_scale)
-	lines.append(_next_sensor_reading_text())
-	lines.append("[b]Alert Triggers:[/b] %d" % room_alert_trigger_count_total)
-	lines.append("")
-	lines.append(_exposure_summary_text())
-	lines.append("")
-	lines.append(_ach_control_mode_text())
-
-	room_panel_text.text = "\n".join(lines)
+	_update_room_cards(selected_room)
+	room_panel_text.text = "[b]Panel Notes[/b]\nKeyboard shortcuts still work: R/E, +/- , H, S, D."
+	_update_room_panel_widgets(selected_room, selected_alert)
+	_refresh_panel_controls_state()
 
 
 func _process(_delta: float) -> void:
@@ -1234,23 +1681,13 @@ func _process(_delta: float) -> void:
 	if Input.is_action_pressed("zoom_out"):
 		camera_2d.zoom.x *= 0.95
 		camera_2d.zoom.y *= 0.95
+
+	_update_alert_lamp_visual(Global.current_time_s())
 	#if Input.is_action_pressed("pause"):
 		#get_tree().paused = true
 	#if Input.is_action_pressed("unpause"):
 		#get_tree().paused = false
 
-	var c_time = Global.current_time_s()
-	var c_time_h = int(c_time / 3600)
-	var c_time_m = int((c_time - c_time_h * 3600) / 60)
-	var fps = Engine.get_frames_per_second()
-	var pause_text := " [PAUSED]" if Global.is_simulation_paused else ""
-	var room_text := ""
-	if selected_room_idx >= 0 and selected_room_idx < room_nodes.size():
-		var selected_room = room_nodes[selected_room_idx]
-		room_text = "   Room: %s ACH %.1f VL %.2f" % [_short_room_name(selected_room.room_id), selected_room.ach_current, selected_room.viral_load]
-	var speed_text := "   Speed x%.2f" % Global.sim_speed_scale
-
-	current_time_label.text = "Time: %02.0f:%02.0f%s   FPS: %d%s%s" % [c_time_h, c_time_m, pause_text, fps, speed_text, room_text]
 	_update_room_panel()
 
 	if Global.current_time_s() > Global.runtime_end_s:
