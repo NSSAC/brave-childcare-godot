@@ -128,15 +128,21 @@ func _draw_knob() -> void:
 	var first_setting := maxi(int(ceil(min_value)), 1)
 	var last_setting := mini(int(floor(max_value)), 9)
 	var displayed_setting := int(round(_display_value()))
+	var max_digit_position := Vector2.ZERO
 	for setting in range(first_setting, last_setting + 1):
 		var tick_ratio := (float(setting) - min_value) / maxf(max_value - min_value, 1.0)
 		var dot_angle := deg_to_rad(135.0 + tick_ratio * 270.0)
 		var dot_dir := Vector2(cos(dot_angle), sin(dot_angle))
 		var dot_pos := center + dot_dir * (radius + 6.0)
 		var digit_pos := center + dot_dir * (radius + 24.0)
+		if setting == last_setting:
+			max_digit_position = digit_pos
 		var dot_color := accent_color.lightened(0.18) if setting == displayed_setting else Color("#8191a3")
 		draw_circle(dot_pos, 3.2, dot_color)
 		_draw_centered_label(digit_pos.x, digit_pos.y + 4.0, str(setting), Color("#8da0b3"), 10)
+
+	if last_setting >= first_setting and displayed_setting >= last_setting:
+		_draw_centered_label(max_digit_position.x, max_digit_position.y + 18.0, "MAX", accent_color.lightened(0.1), 9)
 
 	_draw_centered_label(center.x, size_v.y - 8.0, _formatted_value(), Color("#d6e2ee"), value_font_size)
 	if label_text != "":

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cu3ixr7n8og50" path="res://Entity/smart_object.gd" id="1_1sv6w"]
 [ext_resource type="PackedScene" uid="uid://n3plf50yn4xx" path="res://Entity/halo.tscn" id="2_uwlqu"]
-[ext_resource type="Texture2D" uid="uid://df38oxqxq7ms1" path="res://Art/cafeteria-table-1.png" id="2_y0sru"]
+[ext_resource type="Texture2D" uid="uid://de0dexhpyjun7" path="res://Art/SnackTables.png" id="3_uwlqu"]
 [ext_resource type="PackedScene" uid="uid://b43np01jjydmr" path="res://Entity/label.tscn" id="4_pu854"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_uwlqu"]
@@ -15,16 +15,18 @@ metadata/_custom_type_script = "uid://cu3ixr7n8og50"
 metadata/_edit_group_ = true
 
 [node name="Halo" parent="." instance=ExtResource("2_uwlqu")]
+visible = false
 position = Vector2(0.500004, 3)
 scale = Vector2(2.35, 2.06667)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-texture = ExtResource("2_y0sru")
+texture = ExtResource("3_uwlqu")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 visible = false
 shape = SubResource("CircleShape2D_uwlqu")
 
 [node name="Label" parent="." instance=ExtResource("4_pu854")]
+visible = false
 offset_top = 68.0
 offset_bottom = 94.0

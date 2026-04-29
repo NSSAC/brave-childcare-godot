@@ -6,8 +6,8 @@ class_name Room extends Area2D
 @export var viral_load: float = 0.0
 @export var infected_emission_per_s: float = 1.0
 @export var non_vent_decay_per_s: float = 0.0
-@export var label_offset: Vector2 = Vector2(-120.0, -120.0)
-@export var label_size: Vector2 = Vector2(380.0, 82.0)
+@export var label_offset: Vector2 = Vector2(-120.0, -90.0)
+@export var label_size: Vector2 = Vector2(380.0, 124.0)
 @export var label_selected_background: Color = Color(0.0, 0.0, 0.0, 0.95)
 @export var label_selected_font_scale: float = 1.1
 @export var alert_overlay_color: Color = Color(1.0, 0.25, 0.25, 0.35)
@@ -31,7 +31,7 @@ var health_mode_enabled: bool = false
 var health_alert_active: bool = false
 var health_manual_override: bool = false
 var ach_min: float = 0.0
-var ach_max: float = 6.0
+var ach_max: float = 7.0
 var ach_health_baseline: float = 3.0
 var schedule_description: String = ""
 
@@ -246,10 +246,8 @@ func _refresh_label(infected_count: int = -1):
 		infected_count = _infected_count_now()
 
 	var short_room_name := _short_room_name(room_id)
-	var title_line := short_room_name
-	if schedule_description != "":
-		title_line += " - " + schedule_description
-	label.text = "%s\nVL = %.2f | ACH = %.1f" % [title_line, viral_load, ach_current]
+	var schedule_line := schedule_description if schedule_description != "" else "Schedule: n/a"
+	label.text = "%s\n%s\nVL = %.2f | ACH = %.1f" % [short_room_name, schedule_line, viral_load, ach_current]
 	label.add_theme_color_override("font_color", _room_vl_color(viral_load))
 	_apply_label_selection_style()
 

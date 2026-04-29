@@ -1,8 +1,75 @@
-[gd_scene load_steps=6 format=3 uid="uid://cn716rk61mj6n"]
+[gd_scene load_steps=14 format=3 uid="uid://cn716rk61mj6n"]
 
 [ext_resource type="Script" uid="uid://ti3hkbtijubp" path="res://Entity/main.gd" id="1_7eq1f"]
 [ext_resource type="PackedScene" uid="uid://b48yck4fdkxok" path="res://Map/map_level_1.tscn" id="2_lhxn6"]
 [ext_resource type="Texture2D" uid="uid://bqidwmi8wxorm" path="res://Art/ChildcareCenter_RoomScene_SplashScreen.png" id="6_u08er"]
+[ext_resource type="Script" uid="uid://dn6jowdjdk0jo" path="res://Entity/ui_dial.gd" id="7_x4r0u"]
+[ext_resource type="Script" uid="uid://cc5ms63kixca1" path="res://Entity/ui_sim_clock.gd" id="8_q2j5d"]
+[ext_resource type="Script" uid="uid://do4lkytmuc08o" path="res://Entity/ui_dot_counter.gd" id="9_3rf3c"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause_overlay"]
+bg_color = Color(0.03, 0.08, 0.15, 0.88)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.84, 1, 0.92)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_side_panel"]
+bg_color = Color(0.07, 0.15, 0.36, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.17, 0.22, 0.28, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_metric_card"]
+bg_color = Color(0.2, 0.34, 0.58, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.33, 0.54, 0.79, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_end_sim_hover"]
+bg_color = Color(0.56, 0.3, 0.3, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8, 0.45, 0.45, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_end_sim_pressed"]
+bg_color = Color(0.35, 0.19, 0.19, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.22, 0.12, 0.12, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_end_sim_normal"]
 bg_color = Color(0.45, 0.27, 0.27, 0.92)
@@ -35,38 +102,38 @@ offset = Vector2(0, 174)
 zoom = Vector2(0.2, 0.2)
 
 [node name="Level1" parent="Map" instance=ExtResource("2_lhxn6")]
+z_index = 1
 
 [node name="CanvasLayer" type="CanvasLayer" parent="Map"]
 
-[node name="CurrentTimeLabel" type="Label" parent="Map/CanvasLayer"]
+[node name="PauseOverlay" type="CenterContainer" parent="Map/CanvasLayer"]
 unique_name_in_owner = true
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -208.5
-offset_right = 208.5
-offset_bottom = 69.0
-grow_horizontal = 2
-theme_override_font_sizes/font_size = 50
-text = "Current Time: 0.0"
-
-[node name="EndSimulationButton" type="Button" parent="Map/CanvasLayer"]
-unique_name_in_owner = true
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
+visible = false
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -500.0
-offset_top = -136.0
-offset_right = -24.0
-offset_bottom = -24.0
-grow_horizontal = 0
-grow_vertical = 0
-theme_override_colors/font_color = Color(1, 0.95, 0.95, 1)
-theme_override_font_sizes/font_size = 41
-theme_override_styles/normal = SubResource("StyleBoxFlat_end_sim_normal")
-text = "End Simulation"
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Map/CanvasLayer/PauseOverlay"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pause_overlay")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/PauseOverlay/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 60
+theme_override_constants/margin_top = 34
+theme_override_constants/margin_right = 60
+theme_override_constants/margin_bottom = 34
+
+[node name="Label" type="Label" parent="Map/CanvasLayer/PauseOverlay/Panel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 96
+text = "Paused"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="RoomPanel" type="PanelContainer" parent="Map/CanvasLayer"]
 unique_name_in_owner = true
@@ -81,6 +148,7 @@ offset_right = -20.0
 offset_bottom = 520.0
 grow_horizontal = 0
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_side_panel")
 
 [node name="MarginContainer" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel"]
 layout_mode = 2
@@ -89,15 +157,517 @@ theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 24
 
-[node name="RoomPanelText" type="RichTextLabel" parent="Map/CanvasLayer/RoomPanel/MarginContainer"]
+[node name="PanelVBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PanelHeaderRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PanelTitle" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/PanelHeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "Operations Panel"
+
+[node name="PanelPlayerNameLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/PanelHeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "Player Name: Anonymous"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="SimulationStateCard" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="RootRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SensorCountdownCard" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SensorCountdownCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SensorCountdownCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SensorCountdownCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Next Sensor"
+
+[node name="PanelSensorValue" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SensorCountdownCard/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(94, 56)
+layout_mode = 2
+script = ExtResource("9_3rf3c")
+panel_color = Color(0.1, 0.12, 0.14, 1)
+bezel_color = Color(0.4, 0.43, 0.48, 1)
+dot_on_color = Color(0.95, 0.97, 1, 1)
+dot_off_color = Color(0.3, 0.34, 0.39, 1)
+
+[node name="SimStateCenterBox" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="ClockBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox"]
+layout_mode = 2
+
+[node name="PanelSimStateClock" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/ClockBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(112, 112)
+layout_mode = 2
+script = ExtResource("8_q2j5d")
+
+[node name="StatsBox" type="GridContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox"]
+layout_mode = 2
+columns = 2
+
+[node name="SimTimeLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Time"
+
+[node name="PanelSimStateTimeValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.98, 1, 1)
+text = "00:00"
+
+[node name="SimFpsLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "FPS"
+
+[node name="PanelSimStateFpsValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.86, 0.96, 1, 1)
+text = "0"
+
+[node name="SimSpeedStateLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Speed"
+
+[node name="PanelSimStateSpeedValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/SimStateCenterBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.93, 1, 1)
+text = "x1.00"
+
+[node name="AlertBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AlertCounterTitle" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Alert Counter"
+
+[node name="PanelAlertCountMatrix" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(94, 56)
+layout_mode = 2
+script = ExtResource("9_3rf3c")
+panel_color = Color(0.16, 0.08, 0.07, 1)
+bezel_color = Color(0.49, 0.21, 0.14, 1)
+dot_on_color = Color(1, 0.44, 0.2, 1)
+dot_off_color = Color(0.31, 0.14, 0.11, 1)
+
+[node name="AlertLampRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PanelAlertLamp" type="Panel" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox/AlertLampRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+
+[node name="AlertLampLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SimulationStateCard/Margin/RootRow/AlertBox/AlertLampRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+text = "Current Detection"
+vertical_alignment = 1
+
+[node name="AchControlLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
+text = "Fan Speed Control"
+
+[node name="AchControlSection" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/AchControlSection"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/AchControlSection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PanelAchControlValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/AchControlSection/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.87, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "Scheduled with Manual"
+
+[node name="DialRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AchDialVBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AchGaugeLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
+text = "Fan Control - ACH level"
+
+[node name="PanelAchGauge" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("7_x4r0u")
+max_value = 8.0
+label_text = "ACH"
+value_decimals = 0
+accent_color = Color(0.423529, 0.733333, 1, 1)
+value_font_size = 30
+label_font_size = 15
+snap_display_to_step = true
+
+[node name="AchButtonsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PanelAchDownButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox/AchButtonsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬇️ ACH -"
+
+[node name="PanelAchUpButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox/AchButtonsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬆️ ACH +"
+
+[node name="ViralDialVBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ViralLoadGaugeLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/ViralDialVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
+text = "Real-time Viral Load"
+
+[node name="PanelViralLoadGauge" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/ViralDialVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("7_x4r0u")
+dial_style = "speedometer"
+max_value = 800.0
+label_text = "Viral Load"
+value_decimals = 0
+accent_color = Color(1, 0.521569, 0.301961, 1)
+value_font_size = 30
+label_font_size = 15
+
+[node name="RoomCardsLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
+text = "Rooms"
+
+[node name="RoomCardsScroll" type="ScrollContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+custom_minimum_size = Vector2(0, 320)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="PanelRoomCards" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/RoomCardsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="MetricsLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
+text = "Metrics"
+
+[node name="MetricsGrid" type="GridContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+columns = 3
+
+[node name="MetricCardAchRate" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardAchRate"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardAchRate/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardAchRate/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Base rate per ACH"
+
+[node name="PanelAchRateValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardAchRate/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.99, 0.93, 0.76, 1)
+text = "$0.00/hr"
+
+[node name="MetricCardCurrentHourly" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardCurrentHourly"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardCurrentHourly/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardCurrentHourly/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Current Total Rate (hourly)"
+
+[node name="PanelCurrentHourlyCostValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardCurrentHourly/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.99, 0.93, 0.76, 1)
+text = "$0.00/hr"
+
+[node name="MetricCardTotalCost" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardTotalCost"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardTotalCost/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardTotalCost/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Total Cost"
+
+[node name="PanelTotalCostValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardTotalCost/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.99, 0.93, 0.76, 1)
+text = "$0.00"
+
+[node name="MetricCardExposureAvg" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureAvg"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureAvg/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureAvg/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Exposure Avg"
+
+[node name="PanelExposureAvgValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureAvg/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 1, 0.81, 1)
+text = "0.00"
+
+[node name="MetricCardExposureMax" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureMax"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureMax/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureMax/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Exposure Max"
+
+[node name="PanelExposureMaxValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureMax/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.7, 0.68, 1)
+text = "0.00"
+
+[node name="MetricCardExposureTotal" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_metric_card")
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureTotal"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureTotal/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureTotal/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.77, 0.83, 1)
+text = "Exposure Total"
+
+[node name="PanelExposureTotalValue" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/MetricsGrid/MetricCardExposureTotal/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.9, 1, 1)
+text = "0.00"
+
+[node name="ActionsLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
+text = "Controls"
+
+[node name="RoomControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PanelPrevRoomButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/RoomControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Prev Room"
+
+[node name="PanelNextRoomButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/RoomControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next Room"
+
+[node name="ModeControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PanelHealthToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Health: OFF"
+
+[node name="SpeedControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PanelSpeedDownButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SpeedControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Speed -"
+
+[node name="PanelSpeedUpButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SpeedControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Speed +"
+
+[node name="PanelPauseButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/SpeedControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Pause"
+
+[node name="PanelEndSimRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+
+[node name="EndSimulationButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/PanelEndSimRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_hover_color = Color(1, 0.98, 0.98, 1)
+theme_override_colors/font_color = Color(1, 0.95, 0.95, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/hover = SubResource("StyleBoxFlat_end_sim_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_end_sim_pressed")
+theme_override_styles/normal = SubResource("StyleBoxFlat_end_sim_normal")
+text = "End Simulation"
+
+[node name="HSeparator" type="HSeparator" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+
+[node name="RoomPanelText" type="RichTextLabel" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/line_separation = 8
 theme_override_font_sizes/normal_font_size = 42
 theme_override_font_sizes/bold_font_size = 42
 bbcode_enabled = true
-text = "Rooms"
-fit_content = true
+text = "Summary"
 scroll_active = false
 autowrap_mode = 0
 
@@ -144,7 +714,7 @@ alignment = 1
 layout_mode = 2
 text = "BRAVE
 Childcare Simulator
-v 1.0"
+v 3.0"
 label_settings = SubResource("LabelSettings_7eq1f")
 horizontal_alignment = 1
 
@@ -168,6 +738,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 48
 placeholder_text = "Enter your name"
+
+[node name="PlayerNameAutoLabel" type="Label" parent="TitleScreen/VBoxContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.72, 1)
+theme_override_font_sizes/font_size = 24
+text = "No name entered. Assigned:"
+horizontal_alignment = 1
 
 [node name="StartSimulationDefaultButton" type="Button" parent="TitleScreen/VBoxContainer"]
 unique_name_in_owner = true
@@ -212,3 +791,111 @@ autowrap_mode = 3
 
 [node name="SaveTimer" type="Timer" parent="."]
 unique_name_in_owner = true
+
+[node name="TutorialOverlay" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 10
+visible = false
+
+[node name="TutorialDimmer" type="ColorRect" parent="TutorialOverlay"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="TutorialHighlightFrame" type="Panel" parent="TutorialOverlay"]
+unique_name_in_owner = true
+visible = false
+offset_right = 220.0
+offset_bottom = 120.0
+mouse_filter = 2
+
+[node name="TutorialCard" type="PanelContainer" parent="TutorialOverlay"]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -780.0
+offset_top = -285.0
+offset_right = 780.0
+offset_bottom = 285.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TutorialCardMargin" type="MarginContainer" parent="TutorialOverlay/TutorialCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="TutorialCardVBox" type="VBoxContainer" parent="TutorialOverlay/TutorialCard/TutorialCardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TutorialStepLabel" type="Label" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.87, 0.94, 1)
+theme_override_font_sizes/font_size = 36
+text = "Step 1 of 1"
+
+[node name="TutorialTitleLabel" type="Label" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 60
+text = "Tutorial"
+
+[node name="TutorialBodyLabel" type="Label" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "Tutorial body"
+autowrap_mode = 3
+
+[node name="TutorialSlideImage" type="TextureRect" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 475)
+layout_mode = 2
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TutorialSlideVideo" type="VideoStreamPlayer" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 475)
+layout_mode = 2
+size_flags_vertical = 3
+expand = true
+
+[node name="TutorialButtonRow" type="HBoxContainer" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TutorialBackButton" type="Button" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox/TutorialButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 36
+text = "Back"
+
+[node name="TutorialNextButton" type="Button" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox/TutorialButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 36
+text = "Next"
+
+[node name="TutorialSkipButton" type="Button" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox/TutorialButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 36
+text = "Skip"
