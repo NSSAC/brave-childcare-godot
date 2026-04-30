@@ -28,6 +28,7 @@ var ach_schedule_idx: int = 0
 var is_selected: bool = false
 var ach_last_update_source: String = "manual"
 var health_mode_enabled: bool = false
+var brave_mode_enabled: bool = false
 var health_alert_active: bool = false
 var health_manual_override: bool = false
 var ach_min: float = 0.0
@@ -123,17 +124,19 @@ func configure_ach_bounds(min_ach: float, max_ach: float, baseline_ach: float) -
 	ach_current = _clamp_ach(ach_current)
 	_refresh_label()
 
-func set_health_mode_enabled(enabled: bool, current_time_s: float) -> void:
-	if health_mode_enabled == enabled:
+func set_health_mode_enabled(enabled: bool, current_time_s: float, brave_mode: bool = false) -> void:
+	if health_mode_enabled == enabled and brave_mode_enabled == (enabled and brave_mode):
 		return
 
 	health_mode_enabled = enabled
+	brave_mode_enabled = enabled and brave_mode
 	health_manual_override = false
 
 	if health_mode_enabled:
 		health_alert_active = false
 		ach_current = _clamp_ach(ach_health_baseline)
 	else:
+		brave_mode_enabled = false
 		health_alert_active = false
 		_apply_schedule_until_time(current_time_s)
 
@@ -150,6 +153,21 @@ func apply_health_mode_alert(alert_active: bool) -> void:
 			ach_current = _clamp_ach(ach_max)
 		else:
 			ach_current = _clamp_ach(ach_health_baseline)
+		ach_last_update_source = ACH_SOURCE_MANUAL
+		_refresh_label()
+
+func apply_brave_mode_alert(alert_active: bool, min_ach: float) -> void:
+	if not health_mode_enabled or not brave_mode_enabled:
+		return
+
+	var brave_floor_ach := _clamp_ach(min_ach)
+	if alert_active != health_alert_active or (not alert_active and not is_equal_approx(ach_current, brave_floor_ach)):
+		health_alert_active = alert_active
+		health_manual_override = false
+		if health_alert_active:
+			ach_current = _clamp_ach(ach_max)
+		else:
+			ach_current = brave_floor_ach
 		ach_last_update_source = ACH_SOURCE_MANUAL
 		_refresh_label()
 
@@ -202,6 +220,8 @@ func has_ach_schedule() -> bool:
 	return ach_schedule.size() > 0
 
 func ach_mode_marker() -> String:
+	if brave_mode_enabled:
+		return "🄱"
 	if health_mode_enabled:
 		return "🄷"
 	return "🅂" if ach_last_update_source == ACH_SOURCE_SCHEDULE else "🄼"

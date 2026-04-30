@@ -1,34 +1,42 @@
-# game_results_live_dashboard.py
+# BRAVE Childcare Game Dasboard
 
-This script converts the game results workflow into a long-running live dashboard updater.
+## game_results_live_dashboard.py
+
+This script converts the game results workflow into a long-running live dashboard updater with integrated simulation analysis gallery.
 
 It monitors:
 - `outputs/output_childcare_stats.json`
 
 It regenerates:
-- `analysis/game_results_dashboard.html`
+- `analysis/game_results_dashboard.html` (leaderboard & metrics)
+- `analysis/sim_analysis_gallery.html` (simulation plots by run with dropdown selector)
 
-It can also host a local web server with an auto-refresh page so the leaderboard view updates while players complete runs.
+It can also host a local web server with auto-refresh pages so both the leaderboard and simulation gallery update while players complete runs.
 
 ## What It Does
 
 1. Reads JSON lines from `output_childcare_stats.json`
-2. Filters for `event == "run_summary"`
+2. Filters for `event == "run_summary"` entries
 3. Rebuilds the Plotly leaderboard dashboard HTML
-4. Watches the stats file for updates using a persistent background thread
-5. Re-renders automatically whenever the stats file changes
-6. Optionally serves `/live` in a browser and auto-refreshes the displayed dashboard when updated
+4. Determines the latest run ID from the stats file
+5. Regenerates simulation analysis plots for the latest run
+6. Rebuilds the simulation gallery HTML with run selector dropdown (populated from all PNG files in `analysis/plots`)
+7. Watches the stats file for updates using a persistent background thread
+8. Re-renders both dashboards automatically whenever the stats file changes
+9. Optionally serves live endpoints in a browser with auto-refresh when updated
 
 ## Requirements
 
 - Python environment with:
   - `pandas`
   - `plotly`
+  - `matplotlib`
+  - `numpy`
 
 If needed:
 
 ```bash
-pip install pandas plotly
+pip install pandas plotly matplotlib numpy
 ```
 
 ## Basic Usage
@@ -45,7 +53,7 @@ Behavior:
 - Writes updated dashboard HTML on each change
 - Keeps running until you stop with `Ctrl+C`
 
-## Live Web Server (Auto-Refreshing Browser View)
+## Live Web Server (Auto-Refreshing Browser Views)
 
 Run:
 
@@ -55,13 +63,20 @@ python analysis/game_results_live_dashboard.py --serve --host 127.0.0.1 --port 8
 ```
 
 Open in browser:
-- Live wrapper page: `http://127.0.0.1:8050/live`
-- Static dashboard file: `http://127.0.0.1:8050/game_results_dashboard.html`
 
-How `/live` works:
-- Embeds the dashboard in an iframe
-- Polls a lightweight endpoint for dashboard file signature changes
-- Reloads iframe automatically when the HTML file is regenerated
+### Leaderboard Endpoints:
+- **Live leaderboard**: `http://127.0.0.1:8050/live` (auto-refreshing wrapper)
+- **Static leaderboard**: `http://127.0.0.1:8050/game_results_dashboard.html`
+
+### Simulation Analysis Endpoints:
+- **Live results gallery**: `http://127.0.0.1:8050/live_results` (auto-refreshing wrapper with run dropdown selector)
+- **Static results gallery**: `http://127.0.0.1:8050/sim_analysis_gallery.html`
+
+How the live endpoints work:
+- Embed the dashboard/gallery in an iframe
+- Poll a lightweight endpoint for file signature changes
+- Reload iframe automatically when the HTML file is regenerated
+- `/live_results` displays simulation plots for the latest run with a dropdown to browse all previously analyzed runs
 
 ## Optional Arguments
 
@@ -91,6 +106,22 @@ How `/live` works:
 - `--refresh-poll-ms INT`
   - Browser-side poll interval for `/live` auto-refresh checks
   - Default: `1200`
+
+## Simulation Analysis Gallery
+
+The integrated simulation analysis gallery automatically:
+- Detects the latest run ID from `output_childcare_stats.json`
+- Regenerates 5 analysis plots for that run in `analysis/plots/`:
+  1. **Exposure by Individual** — cumulative viral exposure grouped by role
+  2. **Exposure Over Time** — exposure trajectories by role with role-mean overlays
+  3. **Exposure Differences** — first differences in exposure by role
+  4. **Exposure Rate** — exposure accumulation rate (units/hour) by role over time
+  5. **Room Trends** — viral load and ACH (air changes per hour) timelines by room
+- Collects all PNG files from `analysis/plots/` to populate the run dropdown
+- Labels each run in the dropdown with: `run_id - player_name - timestamp` (from stats metadata)
+- Allows browsing historical runs via the dropdown selector on `/live_results`
+
+Note: Plot generation uses matplotlib and requires the raw simulation output files in `outputs/`.
 
 ## Example Commands
 

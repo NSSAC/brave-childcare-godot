@@ -861,7 +861,7 @@ autowrap_mode = 3
 [node name="TutorialSlideImage" type="TextureRect" parent="TutorialOverlay/TutorialCard/TutorialCardMargin/TutorialCardVBox"]
 unique_name_in_owner = true
 visible = false
-custom_minimum_size = Vector2(0, 475)
+custom_minimum_size = Vector2(0, 550)
 layout_mode = 2
 size_flags_vertical = 3
 expand_mode = 1

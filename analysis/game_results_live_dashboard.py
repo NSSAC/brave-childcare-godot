@@ -15,10 +15,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from sim_analysis_live_dashboard import render_gallery
+
 
 # Quadrant divider configuration.
-QUADRANT_COST_THRESHOLD = 50.0
-QUADRANT_EXPOSURE_THRESHOLD = 50000.0
+QUADRANT_COST_THRESHOLD = 40.0
+QUADRANT_EXPOSURE_THRESHOLD = 80000.0
 
 QUADRANT_LABELS = {
     "bottom_left": "Healthier and Cheaper",
@@ -35,13 +37,13 @@ RATIO_COLUMN_LABEL = "Cost / Cum Exposure"
 RATIO_DECIMALS = 6
 
 
-def _dashboard_wrapper_html(dashboard_filename: str, poll_ms: int) -> str:
-        return f"""<!doctype html>
+def _live_wrapper_html(title: str, status_label: str, iframe_path: str, mtime_path: str, poll_ms: int) -> str:
+	return f"""<!doctype html>
 <html>
     <head>
         <meta charset=\"utf-8\" />
         <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
-        <title>Live Childcare Dashboard</title>
+    <title>{title}</title>
         <style>
             html, body {{ margin: 0; padding: 0; height: 100%; background: #111; color: #ddd; font-family: sans-serif; }}
             #status {{ padding: 8px 12px; font-size: 13px; background: #1b1b1b; border-bottom: 1px solid #2b2b2b; }}
@@ -51,8 +53,8 @@ def _dashboard_wrapper_html(dashboard_filename: str, poll_ms: int) -> str:
         </style>
     </head>
     <body>
-        <div id=\"status\">Live dashboard: <span class=\"ok\">connected</span></div>
-        <iframe id=\"frame\" src=\"/{dashboard_filename}?ts=0\"></iframe>
+        <div id=\"status\">{status_label}: <span class=\"ok\">connected</span></div>
+        <iframe id=\"frame\" src=\"{iframe_path}?ts=0\"></iframe>
         <script>
             const statusEl = document.getElementById('status');
             const frame = document.getElementById('frame');
@@ -61,18 +63,18 @@ def _dashboard_wrapper_html(dashboard_filename: str, poll_ms: int) -> str:
 
             async function checkForUpdate() {{
                 try {{
-                    const res = await fetch('/__dashboard_mtime', {{ cache: 'no-store' }});
+                    const res = await fetch('{mtime_path}', {{ cache: 'no-store' }});
                     if (!res.ok) throw new Error('status ' + res.status);
                     const sig = (await res.text()).trim();
                     if (lastSig === null) {{
                         lastSig = sig;
                     }} else if (sig !== lastSig) {{
                         lastSig = sig;
-                        frame.src = '/{dashboard_filename}?ts=' + Date.now();
-                        statusEl.innerHTML = 'Live dashboard: <span class=\"ok\">updated ' + new Date().toLocaleTimeString() + '</span>';
+                        frame.src = '{iframe_path}?ts=' + Date.now();
+                        statusEl.innerHTML = '{status_label}: <span class=\"ok\">updated ' + new Date().toLocaleTimeString() + '</span>';
                     }}
                 }} catch (err) {{
-                    statusEl.innerHTML = 'Live dashboard: <span class=\"warn\">waiting for updates...</span>';
+                    statusEl.innerHTML = '{status_label}: <span class=\"warn\">waiting for updates...</span>';
                 }}
             }}
 
@@ -82,6 +84,26 @@ def _dashboard_wrapper_html(dashboard_filename: str, poll_ms: int) -> str:
     </body>
 </html>
 """
+
+
+def _dashboard_wrapper_html(dashboard_filename: str, poll_ms: int) -> str:
+    return _live_wrapper_html(
+        title="Live Childcare Dashboard",
+        status_label="Live dashboard",
+        iframe_path=f"/{dashboard_filename}",
+        mtime_path="/__dashboard_mtime",
+        poll_ms=poll_ms,
+    )
+
+
+def _results_wrapper_html(results_filename: str, poll_ms: int) -> str:
+    return _live_wrapper_html(
+        title="Live Simulation Results",
+        status_label="Live results",
+        iframe_path=f"/{results_filename}",
+        mtime_path="/__live_results_mtime",
+        poll_ms=poll_ms,
+    )
 
 
 def _find_stats_path() -> Path:
@@ -362,9 +384,17 @@ def render_dashboard(stats_path: Path, export_path: Path) -> int:
 
 
 class DashboardAutoUpdater:
-    def __init__(self, stats_path: Path, export_path: Path, poll_seconds: float = 2.0) -> None:
+    def __init__(
+        self,
+        stats_path: Path,
+        export_path: Path,
+        sim_export_path: Path,
+        poll_seconds: float = 2.0,
+    ) -> None:
         self.stats_path = stats_path
         self.export_path = export_path
+        self.sim_export_path = sim_export_path
+        self.repo_root = stats_path.parent.parent
         self.poll_seconds = max(0.25, poll_seconds)
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._run, name="dashboard-monitor", daemon=False)
@@ -387,8 +417,16 @@ class DashboardAutoUpdater:
         for attempt in range(1, retries + 1):
             try:
                 run_count = render_dashboard(self.stats_path, self.export_path)
+                sim_run_count, sim_initial_run_id = render_gallery(
+                    stats_path=self.stats_path,
+                    export_path=self.sim_export_path,
+                    repo_root=self.repo_root,
+                )
                 print(
                     f"[{time.strftime('%H:%M:%S')}] Dashboard updated: {run_count} runs -> {self.export_path}"
+                )
+                print(
+                    f"[{time.strftime('%H:%M:%S')}] Live results updated: {sim_run_count} plotted runs, initial {sim_initial_run_id} -> {self.sim_export_path}"
                 )
                 return
             except Exception as exc:  # pragma: no cover - runtime resilience path
@@ -412,8 +450,16 @@ class DashboardAutoUpdater:
 
 
 class DashboardHttpServer:
-    def __init__(self, export_path: Path, host: str, port: int, refresh_poll_ms: int = 1200) -> None:
+    def __init__(
+        self,
+        export_path: Path,
+        sim_export_path: Path,
+        host: str,
+        port: int,
+        refresh_poll_ms: int = 1200,
+    ) -> None:
         self.export_path = export_path
+        self.sim_export_path = sim_export_path
         self.host = host
         self.port = port
         self.refresh_poll_ms = max(250, refresh_poll_ms)
@@ -423,6 +469,8 @@ class DashboardHttpServer:
     def _make_handler(self):
         export_path = self.export_path
         dashboard_filename = export_path.name
+        sim_export_path = self.sim_export_path
+        sim_results_filename = sim_export_path.name
         poll_ms = self.refresh_poll_ms
 
         class _Handler(SimpleHTTPRequestHandler):
@@ -449,10 +497,32 @@ class DashboardHttpServer:
                     self.wfile.write(body)
                     return
 
+                if path == "/live_results":
+                    body = _results_wrapper_html(sim_results_filename, poll_ms).encode("utf-8")
+                    self.send_response(HTTPStatus.OK)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+
                 if path == "/__dashboard_mtime":
                     sig = "0"
                     if export_path.exists():
                         st = export_path.stat()
+                        sig = f"{st.st_mtime_ns}:{st.st_size}"
+                    body = sig.encode("utf-8")
+                    self.send_response(HTTPStatus.OK)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+
+                if path == "/__live_results_mtime":
+                    sig = "0"
+                    if sim_export_path.exists():
+                        st = sim_export_path.stat()
                         sig = f"{st.st_mtime_ns}:{st.st_size}"
                     body = sig.encode("utf-8")
                     self.send_response(HTTPStatus.OK)
@@ -537,24 +607,34 @@ def main() -> None:
         if args.export_path is not None
         else stats_path.parent.parent / "analysis" / "game_results_dashboard.html"
     )
+    sim_export_path = stats_path.parent.parent / "analysis" / "sim_analysis_gallery.html"
 
     print(f"Monitoring stats file: {stats_path}")
     print(f"Writing dashboard HTML: {export_path}")
+    print(f"Writing live results HTML: {sim_export_path}")
     print("Press Ctrl+C to stop.")
 
-    updater = DashboardAutoUpdater(stats_path=stats_path, export_path=export_path, poll_seconds=args.poll_seconds)
+    updater = DashboardAutoUpdater(
+        stats_path=stats_path,
+        export_path=export_path,
+        sim_export_path=sim_export_path,
+        poll_seconds=args.poll_seconds,
+    )
     server: DashboardHttpServer | None = None
 
     if args.serve:
         server = DashboardHttpServer(
             export_path=export_path,
+            sim_export_path=sim_export_path,
             host=args.host,
             port=args.port,
             refresh_poll_ms=args.refresh_poll_ms,
         )
         server.start()
         print(f"Live server: http://{args.host}:{args.port}/live")
+        print(f"Live results: http://{args.host}:{args.port}/live_results")
         print(f"Static HTML: http://{args.host}:{args.port}/{export_path.name}")
+        print(f"Static results HTML: http://{args.host}:{args.port}/{sim_export_path.name}")
 
     updater.start()
 

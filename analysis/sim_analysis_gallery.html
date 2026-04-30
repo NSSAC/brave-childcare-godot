@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulation Analysis Gallery</title>
+  <style>
+    :root {
+      --bg: #f7f6f3;
+      --card: #ffffff;
+      --ink: #1d2a35;
+      --muted: #5f6b76;
+      --accent: #2b7a78;
+      --edge: #d9d8d4;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Avenir Next", "Segoe UI", sans-serif; background: linear-gradient(180deg, #f7f6f3 0%, #ece9e1 100%); color: var(--ink); }
+    .shell { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+    .top { background: var(--card); border: 1px solid var(--edge); border-radius: 12px; padding: 14px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+    .title { font-size: 1.25rem; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 0.92rem; margin-top: 3px; }
+    .picker { display: flex; align-items: center; gap: 8px; }
+    select { border: 1px solid #bcc5cc; border-radius: 8px; padding: 8px 10px; min-width: 320px; background: #fff; color: var(--ink); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 16px; }
+    .plot-card { background: var(--card); border: 1px solid var(--edge); border-radius: 12px; padding: 12px; }
+    .plot-title { font-weight: 600; margin-bottom: 8px; color: #22303d; }
+    .plot-image { width: 100%; height: auto; border-radius: 8px; border: 1px solid #d3d9df; background: #fafafa; }
+    .missing { border: 1px dashed #d0bfbf; border-radius: 8px; color: #8a5a5a; padding: 16px; background: #fff7f7; }
+    @media (min-width: 960px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .plot-card.wide { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="top">
+      <div>
+        <div class="title">Simulation Analysis Gallery</div>
+        <div class="sub" id="activeRunLabel">Run</div>
+      </div>
+      <div class="picker">
+        <label for="runSelect">Run</label>
+        <select id="runSelect"></select>
+      </div>
+    </div>
+    <div id="plots" class="grid"></div>
+  </div>
+
+  <script>
+    const payload = {"runs": [{"run_id": "id-0016", "label": "id-0016 - Andrew - 2026-04-20 10:29", "images": {"01_exposure_by_individual": "run_id-0016_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0016_02_exposure_over_time.png", "03_exposure_differences": "run_id-0016_03_exposure_differences.png", "04_exposure_rate": "run_id-0016_04_exposure_rate.png", "05_room_trends": "run_id-0016_05_room_trends.png"}}, {"run_id": "id-0021", "label": "id-0021 - JohnnyHaleDeuce - 2026-04-20 10:56", "images": {"01_exposure_by_individual": "run_id-0021_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0021_02_exposure_over_time.png", "03_exposure_differences": "run_id-0021_03_exposure_differences.png", "04_exposure_rate": "run_id-0021_04_exposure_rate.png", "05_room_trends": "run_id-0021_05_room_trends.png"}}, {"run_id": "id-0034", "label": "id-0034", "images": {"02_exposure_over_time": "02_exposure_over_time_run-id-0034.png", "03_exposure_differences": "03_exposure_differences_run-id-0034.png", "04_exposure_rate": "04_exposure_rate_run-id-0034.png"}}, {"run_id": "id-0089", "label": "id-0089 - srini - 2026-04-24 14:50", "images": {"01_exposure_by_individual": "run_id-0089_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0089_02_exposure_over_time.png", "03_exposure_differences": "run_id-0089_03_exposure_differences.png", "04_exposure_rate": "run_id-0089_04_exposure_rate.png", "05_room_trends": "run_id-0089_05_room_trends.png"}}, {"run_id": "id-0114", "label": "id-0114 - Dr.L - 2026-04-28 19:21", "images": {"01_exposure_by_individual": "run_id-0114_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0114_02_exposure_over_time.png", "03_exposure_differences": "run_id-0114_03_exposure_differences.png", "04_exposure_rate": "run_id-0114_04_exposure_rate.png", "05_room_trends": "run_id-0114_05_room_trends.png"}}, {"run_id": "id-0130", "label": "id-0130 - Connolly - 2026-04-29 14:06", "images": {"01_exposure_by_individual": "run_id-0130_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0130_02_exposure_over_time.png", "03_exposure_differences": "run_id-0130_03_exposure_differences.png", "04_exposure_rate": "run_id-0130_04_exposure_rate.png", "05_room_trends": "run_id-0130_05_room_trends.png"}}, {"run_id": "id-0148", "label": "id-0148 - Elinor - 2026-04-29 19:25", "images": {"01_exposure_by_individual": "run_id-0148_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0148_02_exposure_over_time.png", "03_exposure_differences": "run_id-0148_03_exposure_differences.png", "04_exposure_rate": "run_id-0148_04_exposure_rate.png", "05_room_trends": "run_id-0148_05_room_trends.png"}}, {"run_id": "id-0149", "label": "id-0149 - Bryan - 2026-04-29 19:41", "images": {"01_exposure_by_individual": "run_id-0149_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0149_02_exposure_over_time.png", "03_exposure_differences": "run_id-0149_03_exposure_differences.png", "04_exposure_rate": "run_id-0149_04_exposure_rate.png", "05_room_trends": "run_id-0149_05_room_trends.png"}}, {"run_id": "id-0151", "label": "id-0151 - Courage - 2026-04-30 10:47", "images": {"01_exposure_by_individual": "run_id-0151_01_exposure_by_individual.png", "02_exposure_over_time": "run_id-0151_02_exposure_over_time.png", "03_exposure_differences": "run_id-0151_03_exposure_differences.png", "04_exposure_rate": "run_id-0151_04_exposure_rate.png", "05_room_trends": "run_id-0151_05_room_trends.png"}}], "initial": "id-0089"};
+    const runSelect = document.getElementById('runSelect');
+    const plots = document.getElementById('plots');
+    const activeRunLabel = document.getElementById('activeRunLabel');
+
+    const preferredOrder = [
+      '01_exposure_by_individual',
+      '02_exposure_over_time',
+      '03_exposure_differences',
+      '04_exposure_rate',
+      '05_room_trends'
+    ];
+
+    function titleFromKey(key) {
+      const noSlot = key.replace(/^\d{2}_/, '');
+    return noSlot.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function sortKeys(keys) {
+      const orderMap = new Map(preferredOrder.map((k, i) => [k, i]));
+      return [...keys].sort((a, b) => {
+        const aa = a.replace(/^\d{2}_/, '');
+        const bb = b.replace(/^\d{2}_/, '');
+        const ai = orderMap.has(aa) ? orderMap.get(aa) : 999;
+        const bi = orderMap.has(bb) ? orderMap.get(bb) : 999;
+        if (ai !== bi) return ai - bi;
+        return a.localeCompare(b);
+      });
+    }
+
+    function renderRun(runId) {
+      const run = payload.runs.find(r => r.run_id === runId);
+      if (!run) return;
+
+      activeRunLabel.textContent = run.label;
+      plots.innerHTML = '';
+
+      const imageKeys = sortKeys(Object.keys(run.images));
+      for (const key of imageKeys) {
+        const filename = run.images[key];
+        const card = document.createElement('section');
+        card.className = 'plot-card' + (key.includes('room_trends') ? ' wide' : '');
+
+        const title = document.createElement('div');
+        title.className = 'plot-title';
+        title.textContent = titleFromKey(key);
+        card.appendChild(title);
+
+        if (filename) {
+          const img = document.createElement('img');
+          img.className = 'plot-image';
+          img.alt = key;
+          img.loading = 'lazy';
+          img.src = `plots/${filename}`;
+          card.appendChild(img);
+        } else {
+          const miss = document.createElement('div');
+          miss.className = 'missing';
+          miss.textContent = 'Missing image for this plot slot.';
+          card.appendChild(miss);
+        }
+
+        plots.appendChild(card);
+      }
+    }
+
+    for (const run of payload.runs) {
+      const option = document.createElement('option');
+      option.value = run.run_id;
+      option.textContent = run.label;
+      runSelect.appendChild(option);
+    }
+
+    const initialRun = payload.runs.some(r => r.run_id === payload.initial)
+      ? payload.initial
+      : (payload.runs.length ? payload.runs[payload.runs.length - 1].run_id : null);
+
+    if (initialRun) {
+      runSelect.value = initialRun;
+      renderRun(initialRun);
+    }
+
+    runSelect.addEventListener('change', () => renderRun(runSelect.value));
+  </script>
+</body>
+</html>

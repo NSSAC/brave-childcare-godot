@@ -69,7 +69,7 @@ extends Node
 
 @export var default_config_path: String = "res://inputs/config_childcare.json"
 @export var default_room_description_file: String = "res://inputs/schedule_rooms.json"
-@export var room_alert_threshold_vl: float = 400.0
+@export var room_alert_threshold_vl: float = 600.0
 @export var room_alert_check_interval_s: float = 45.0 * 60.0
 @export var room_panel_refresh_interval_s: float = 0.5
 @export var sim_speed_scale_step: float = 0.2
@@ -109,9 +109,12 @@ var room_cost_last_update_s: float = 0.0
 var room_panel_next_update_s: float = 0.0
 var last_viewport_size: Vector2 = Vector2.ZERO
 var health_mode_active: bool = false
+var brave_mode_active: bool = false
 var health_mode_baseline_ach: float = 3.0
 var health_mode_max_ach: float = 7.0
 var health_mode_min_ach: float = 0.0
+var brave_mode_threshold: float = 100.0
+var brave_mode_min_ach: float = 1.0
 var active_config_path: String = ""
 var active_config_for_archive: Dictionary = {}
 var panel_alert_lamp_style_on: StyleBoxFlat
@@ -599,7 +602,12 @@ func _update_room_panel_widgets(selected_room, is_alerting: bool) -> void:
 	_set_panel_value(panel_exposure_avg_value, "%.0f" % float(exposure_stats["mean"]), Color(0.8, 1, 0.9, 1))
 	_set_panel_value(panel_exposure_max_value, "%.0f" % float(exposure_stats["max"]), Color(1, 0.84, 0.84, 1))
 	_set_panel_value(panel_exposure_total_value, "%.0f" % float(exposure_stats["total"]), Color(0.78, 0.93, 1, 1))
-	_set_panel_value(panel_ach_control_value, "🄷  Health Mode" if health_mode_active else "🅂 Schedule or 🄼 Manual", Color(0.87, 0.89, 1, 1))
+	var ach_control_mode_text := "🅂 Schedule or 🄼 Manual"
+	if brave_mode_active:
+		ach_control_mode_text = "🄱  BRAVE Mode"
+	elif health_mode_active:
+		ach_control_mode_text = "🄷  Health Mode"
+	_set_panel_value(panel_ach_control_value, ach_control_mode_text, Color(0.87, 0.89, 1, 1))
 	_update_simulation_state_card()
 
 func _derive_room_output_path(sim_output_file: String) -> String:
@@ -791,6 +799,8 @@ func _configure_rooms_health_bounds() -> void:
 			room.configure_ach_bounds(health_mode_min_ach, health_mode_max_ach, health_mode_baseline_ach)
 
 func _set_health_mode(active: bool) -> void:
+	if active and brave_mode_active:
+		_set_brave_mode(false)
 	if health_mode_active == active:
 		return
 
@@ -798,10 +808,26 @@ func _set_health_mode(active: bool) -> void:
 	var current_time_s: float = Global.current_time_s()
 	for room in room_nodes:
 		if is_instance_valid(room) and room.has_method("set_health_mode_enabled"):
-			room.set_health_mode_enabled(health_mode_active, current_time_s)
+			room.set_health_mode_enabled(health_mode_active, current_time_s, false)
 
 	if health_mode_active:
 		_apply_health_mode_ach_overrides()
+	_update_room_panel(true)
+
+func _set_brave_mode(active: bool) -> void:
+	if active and health_mode_active:
+		_set_health_mode(false)
+	if brave_mode_active == active:
+		return
+
+	brave_mode_active = active
+	var current_time_s: float = Global.current_time_s()
+	for room in room_nodes:
+		if is_instance_valid(room) and room.has_method("set_health_mode_enabled"):
+			room.set_health_mode_enabled(brave_mode_active, current_time_s, true)
+
+	if brave_mode_active:
+		_apply_brave_mode_ach_overrides()
 	_update_room_panel(true)
 
 func _apply_health_mode_ach_overrides() -> void:
@@ -814,6 +840,17 @@ func _apply_health_mode_ach_overrides() -> void:
 		if room.has_method("apply_health_mode_alert"):
 			var alert_active_now: bool = room.viral_load >= room_alert_threshold_vl
 			room.apply_health_mode_alert(alert_active_now)
+
+func _apply_brave_mode_ach_overrides() -> void:
+	if not brave_mode_active:
+		return
+
+	for room in room_nodes:
+		if not is_instance_valid(room):
+			continue
+		if room.has_method("apply_brave_mode_alert"):
+			var brave_alert_active_now: bool = room.viral_load >= brave_mode_threshold
+			room.apply_brave_mode_alert(brave_alert_active_now, brave_mode_min_ach)
 
 func _scene_for_person(pd: Dictionary) -> PackedScene:
 	var role := str(pd.get("role", "")).strip_edges()
@@ -1243,7 +1280,7 @@ func _build_tutorial_steps() -> Array[Dictionary]:
 		},
 		{
 			"title": "BRAVE's goal is to automate this process",
-			"body": "See an simple version of automated health building environment play out with the '🄷 Health Mode' which auto-adjusts ACH based on room conditions.",
+			"body": "See an simple version of an automated healthy building environment system at work with the '🄷 Health Mode' which auto-adjusts ACH based on room conditions.",
 			"target": "PanelHealthToggleButton",
 			"image": "res://Art/tutorial/step_06_health_mode.png"
 		},
@@ -1502,6 +1539,7 @@ func start_simulation(file: String):
 	for room in room_nodes:
 		room.reset_for_simulation(Global.runtime_start_s)
 	_configure_rooms_health_bounds()
+	_set_brave_mode(false)
 	_set_health_mode(false)
 
 	room_vl_last.clear()
@@ -1566,6 +1604,7 @@ func _end_simulation(reason: String = "manual") -> void:
 	if player_name_auto_label != null:
 		player_name_auto_label.visible = false
 	_update_player_name_labels()
+	_set_brave_mode(false)
 	_set_health_mode(false)
 	_refresh_last_run_summary(Global.stats_output_file_path)
 	_update_room_panel(true)
@@ -1866,6 +1905,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	if Global.is_simulation_active and event.is_action_pressed("brave_toggle") and not event.is_echo():
+		_set_brave_mode(not brave_mode_active)
+		get_viewport().set_input_as_handled()
+		return
+
 	if not Global.is_simulation_active and title_screen != null and title_screen.visible and event.is_action_pressed("start_simulation") and not event.is_echo():
 		_on_start_simulation_default_button_pressed()
 		get_viewport().set_input_as_handled()
@@ -1902,6 +1946,8 @@ func _adjust_selected_room_ach(delta: float):
 	_update_room_panel(true)
 
 func _room_ach_mode_marker(room) -> String:
+	if brave_mode_active:
+		return "🄱"
 	if health_mode_active:
 		return "🄷"
 	if room.has_method("ach_mode_marker"):
@@ -2168,7 +2214,10 @@ func _process(_delta: float) -> void:
 func _physics_process(_delta: float) -> void:
 	if Global.can_advance_simulation() and Global.sim_clock_s > 0.0:
 		Global.sim_clock_s += Global.seconds_per_physics_tick
-		_apply_health_mode_ach_overrides()
+		if brave_mode_active:
+			_apply_brave_mode_ach_overrides()
+		else:
+			_apply_health_mode_ach_overrides()
 		_update_room_cost()
 
 		if Global.sim_clock_s - Global.prev_abs_event_s > Global.abs_tick_duration_s:

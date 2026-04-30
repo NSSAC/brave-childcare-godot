@@ -1,8 +1,9 @@
-[gd_scene load_steps=24 format=4 uid="uid://b48yck4fdkxok"]
+[gd_scene load_steps=25 format=4 uid="uid://b48yck4fdkxok"]
 
 [ext_resource type="Texture2D" uid="uid://c53ehjkvkqmrr" path="res://Art/tileset-2.png" id="1_tg0rq"]
 [ext_resource type="Texture2D" uid="uid://dvuxpakcd21vf" path="res://Art/PlainFloorPlan_brave-childcare.png" id="2_a64k3"]
 [ext_resource type="PackedScene" uid="uid://c5wj3u24b0gy8" path="res://Entity/cubicle.tscn" id="2_vjm4v"]
+[ext_resource type="Texture2D" uid="uid://45ift4vtbvvk" path="res://Art/BRAVE_icon.png" id="3_n7psn"]
 [ext_resource type="PackedScene" uid="uid://i8f8afnge73j" path="res://Entity/conference_table.tscn" id="4_6yd2t"]
 [ext_resource type="PackedScene" uid="uid://d4hn7us6dv7ie" path="res://Entity/restroom.tscn" id="5_w7253"]
 [ext_resource type="PackedScene" uid="uid://4bnarddnod5i" path="res://Entity/entrance.tscn" id="6_3f70k"]
@@ -48,6 +49,11 @@ metadata/_edit_group_ = true
 position = Vector2(-660, 99)
 scale = Vector2(2.15, 2.252)
 texture = ExtResource("2_a64k3")
+
+[node name="BRAVE icon" type="Sprite2D" parent="TileMapLayer"]
+position = Vector2(-3800, 0)
+scale = Vector2(0.75, 0.75)
+texture = ExtResource("3_n7psn")
 
 [node name="RoomsContainer" type="Node2D" parent="."]
 
