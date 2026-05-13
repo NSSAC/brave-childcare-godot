@@ -142,11 +142,11 @@ func _draw_knob() -> void:
 		_draw_centered_label(digit_pos.x, digit_pos.y + 4.0, str(setting), Color("#8da0b3"), 10)
 
 	if last_setting >= first_setting and displayed_setting >= last_setting:
-		_draw_centered_label(max_digit_position.x, max_digit_position.y + 18.0, "MAX", accent_color.lightened(0.1), 9)
+		_draw_centered_label(max_digit_position.x, max_digit_position.y + 18.0, "MAX", accent_color.lightened(0.1), 11)
 
-	_draw_centered_label(center.x, size_v.y - 8.0, _formatted_value(), Color("#d6e2ee"), value_font_size)
+	_draw_centered_label(center.x, size_v.y -35.0, _formatted_value(), Color("#d6e2ee"), value_font_size)
 	if label_text != "":
-		_draw_centered_label(center.x, 20.0, label_text, Color("#95a7b8"), label_font_size)
+		_draw_centered_label(center.x, 150.0, label_text, Color("#95a7b8"), label_font_size)
 
 func _draw_speedometer() -> void:
 	var size_v := size
@@ -174,9 +174,9 @@ func _draw_speedometer() -> void:
 	draw_line(center, needle_tip, accent_color, 4.0)
 	draw_circle(center, 7.0, Color("#c9d5e3"))
 	
-	_draw_centered_label(center.x, size_v.y - 6.0, _formatted_value(), Color("#d6e2ee"), value_font_size)
+	_draw_centered_label(center.x, size_v.y +6.0, _formatted_value(), Color("#d6e2ee"), value_font_size)
 	if label_text != "":
-		_draw_centered_label(center.x, 18.0, label_text, Color("#95a7b8"), label_font_size)
+		_draw_centered_label(center.x, 190.0, label_text, Color("#95a7b8"), label_font_size)
 
 func _draw_arc_segment(center: Vector2, radius: float, start_deg: float, end_deg: float, color: Color, width: float) -> void:
 	var points := PackedVector2Array()

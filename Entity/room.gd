@@ -7,17 +7,34 @@ class_name Room extends Area2D
 @export var infected_emission_per_s: float = 1.0
 @export var non_vent_decay_per_s: float = 0.0
 @export var label_offset: Vector2 = Vector2(-120.0, -90.0)
-@export var label_size: Vector2 = Vector2(380.0, 124.0)
-@export var label_selected_background: Color = Color(0.0, 0.0, 0.0, 0.95)
+@export var label_size: Vector2 = Vector2(330.0, 148.0)
+@export var label_z_index: int = 20
+@export var label_background_color: Color = Color(1.0, 1.0, 1.0, 0.68)
+@export var label_selected_background: Color = Color(1.0, 1.0, 1.0, 0.84)
+@export var label_border_color: Color = Color(0.05, 0.08, 0.12, 0.14)
+@export var label_selected_border_color: Color = Color(0.12, 0.34, 0.62, 0.46)
+@export var label_selected_edge_width: int = 2
+@export var label_text_color: Color = Color(0.09, 0.11, 0.14, 0.96)
+@export var label_muted_text_color: Color = Color(0.09, 0.11, 0.14, 0.72)
+@export var ach_gauge_color: Color = Color("#4c8bf5")
+@export var gauge_track_color: Color = Color(0.05, 0.08, 0.12, 0.12)
 @export var label_selected_font_scale: float = 1.1
 @export var alert_overlay_color: Color = Color(1.0, 0.25, 0.25, 0.35)
 @export var alert_overlay_z_index: int = 25
 
-@onready var label_background: ColorRect = $LabelBackground
-@onready var label: Label = $Label
+@onready var label_background: Panel = $LabelBackground
+@onready var title_label: Label = $LabelBackground/TitleLabel
+@onready var schedule_label: Label = $LabelBackground/ScheduleLabel
+@onready var vl_prefix_label: Label = $LabelBackground/VLPrefixLabel
+@onready var vl_gauge_track: ColorRect = $LabelBackground/VLGaugeTrack
+@onready var vl_gauge_fill: ColorRect = $LabelBackground/VLGaugeTrack/VLGaugeFill
+@onready var ach_prefix_label: Label = $LabelBackground/ACHPrefixLabel
+@onready var ach_gauge_track: ColorRect = $LabelBackground/ACHGaugeTrack
+@onready var ach_gauge_fill: ColorRect = $LabelBackground/ACHGaugeTrack/ACHGaugeFill
+@onready var vl_value_label: Label = $LabelBackground/VLValueLabel
+@onready var ach_value_label: Label = $LabelBackground/ACHValueLabel
 
-var label_bg_default_color: Color = Color(0.0, 0.0, 0.0, 0.0)
-var label_font_size_default: int = -1
+var title_font_size_default: int = -1
 var alert_indicator_active: bool = false
 var label_selection_dirty: bool = true
 var alert_overlays: Array[Polygon2D] = []
@@ -46,6 +63,19 @@ const ROOM_VL_COLOR_POINTS := [
 	{"value": 1000.0, "color": Color("#cf4dff")}
 ]
 
+const PANEL_PADDING_X: float = 12.0
+const PANEL_PADDING_Y: float = 10.0
+const PANEL_GUTTER_X: float = 10.0
+const PANEL_TITLE_HEIGHT: float = 22.0
+const PANEL_SCHEDULE_HEIGHT: float = 18.0
+const PANEL_GAUGE_ROW_HEIGHT: float = 20.0
+const PANEL_GAUGE_LABEL_WIDTH: float = 42.0
+const PANEL_GAUGE_LABEL_GAP: float = 16.0
+const PANEL_GAUGE_HEIGHT: float = 10.0
+const PANEL_GAUGE_TOP_INSET: float = 7.0
+const PANEL_LEFT_COLUMN_RATIO: float = 0.58
+const PANEL_VL_MAX_REFERENCE: float = 1000.0
+
 func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 0b01
@@ -57,13 +87,11 @@ func _ready() -> void:
 
 	ach_current = ach_default
 	label_background.top_level = true
+	label_background.z_index = label_z_index
 	label_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label_background.size = label_size
-	label_bg_default_color = label_background.color
-	label.top_level = true
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.size = label_size
-	label_font_size_default = label.get_theme_font_size("font_size")
+	title_font_size_default = title_label.get_theme_font_size("font_size")
+	_update_panel_layout()
 
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
@@ -75,6 +103,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_update_label_transform()
+	if label_background != null and label_background.z_index != label_z_index:
+		label_background.z_index = label_z_index
 
 func _create_alert_overlays() -> void:
 	for overlay in alert_overlays:
@@ -259,56 +289,158 @@ func _clamp_ach(value: float) -> float:
 	return clampf(value, ach_min, ach_max)
 
 func _refresh_label(infected_count: int = -1):
-	if label == null:
+	if title_label == null:
 		return
 
 	if infected_count < 0:
 		infected_count = _infected_count_now()
 
 	var short_room_name := _short_room_name(room_id)
-	var schedule_line := schedule_description if schedule_description != "" else "Schedule: n/a"
-	label.text = "%s\n%s\nVL = %.2f | ACH = %.1f" % [short_room_name, schedule_line, viral_load, ach_current]
-	label.add_theme_color_override("font_color", _room_vl_color(viral_load))
+	title_label.text = short_room_name
+	schedule_label.text = schedule_description if schedule_description != "" else "Schedule: n/a"
+	vl_prefix_label.text = "Load"
+	ach_prefix_label.text = "ACH"
+	vl_value_label.text = "%d" % int(round(viral_load))
+	ach_value_label.text = "%d" % int(round(ach_current))
+
+	var vl_color := _room_vl_color(viral_load)
+	_apply_gauge_fill(vl_gauge_track, vl_gauge_fill, _vl_ratio(), vl_color)
+	_apply_gauge_fill(ach_gauge_track, ach_gauge_fill, _ach_ratio(), ach_gauge_color)
+
+	title_label.add_theme_color_override("font_color", label_text_color)
+	schedule_label.add_theme_color_override("font_color", label_muted_text_color)
+	vl_prefix_label.add_theme_color_override("font_color", label_text_color)
+	ach_prefix_label.add_theme_color_override("font_color", label_text_color)
+	vl_value_label.add_theme_color_override("font_color", vl_color)
+	ach_value_label.add_theme_color_override("font_color", label_text_color)
 	_apply_label_selection_style()
 
 func _update_label_transform() -> void:
-	if label == null or label_background == null:
+	if label_background == null:
 		return
 
 	label_background.global_position = global_position + label_offset
 	label_background.size = label_size
-	label.global_position = global_position + label_offset
-	label.size = label_size
+	_update_panel_layout()
 
 func _apply_label_selection_style() -> void:
-	if label == null or label_background == null:
+	if label_background == null:
 		return
 	if not label_selection_dirty:
 		return
 
+	var style := StyleBoxFlat.new()
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_right = 10
+	style.corner_radius_bottom_left = 10
+	var border_width := label_selected_edge_width if is_selected else 1
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
+	style.bg_color = label_selected_background if is_selected else label_background_color
+	style.border_color = label_selected_border_color if is_selected else label_border_color
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.22) if is_selected else Color(0.0, 0.0, 0.0, 0.08)
+	style.shadow_size = 3 if is_selected else 1
+	label_background.add_theme_stylebox_override("panel", style)
+
 	if is_selected:
-		label_background.color = label_selected_background
-		if label_font_size_default <= 0:
-			label_font_size_default = label.get_theme_font_size("font_size")
-		if label_font_size_default > 0 and label_selected_font_scale > 0.0:
-			var scaled_size := int(round(label_font_size_default * label_selected_font_scale))
-			label.add_theme_font_size_override("font_size", scaled_size)
-		label.add_theme_constant_override("outline_size", 2)
-		label.add_theme_color_override("font_outline_color", Color.BLACK)
+		if title_font_size_default <= 0:
+			title_font_size_default = title_label.get_theme_font_size("font_size")
+		if title_font_size_default > 0 and label_selected_font_scale > 0.0:
+			var scaled_size := int(round(title_font_size_default * label_selected_font_scale))
+			title_label.add_theme_font_size_override("font_size", scaled_size)
+		title_label.add_theme_constant_override("outline_size", 2)
+		title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.15))
 	else:
-		label_background.color = label_bg_default_color
-		label.remove_theme_font_size_override("font_size")
-		label.remove_theme_constant_override("outline_size")
-		label.remove_theme_color_override("font_outline_color")
+		title_label.remove_theme_font_size_override("font_size")
+		title_label.remove_theme_constant_override("outline_size")
+		title_label.remove_theme_color_override("font_outline_color")
 
 	label_selection_dirty = false
+
+func _update_panel_layout() -> void:
+	if label_background == null:
+		return
+
+	var total_width := maxf(label_size.x, 250.0)
+	var total_height := maxf(label_size.y, 126.0)
+	var inner_width := total_width - PANEL_PADDING_X * 2.0
+	var left_width := maxf((inner_width - PANEL_GUTTER_X) * PANEL_LEFT_COLUMN_RATIO, 110.0)
+	var right_width := maxf(inner_width - PANEL_GUTTER_X - left_width, 92.0)
+	var right_x := PANEL_PADDING_X + left_width + PANEL_GUTTER_X
+	var title_y := PANEL_PADDING_Y
+	var schedule_y := title_y + PANEL_TITLE_HEIGHT + 2.0
+	var vl_row_y := schedule_y + PANEL_SCHEDULE_HEIGHT + 7.0
+	var ach_row_y := vl_row_y + PANEL_GAUGE_ROW_HEIGHT + 7.0
+
+	title_label.position = Vector2(PANEL_PADDING_X, title_y)
+	title_label.size = Vector2(inner_width, PANEL_TITLE_HEIGHT)
+	schedule_label.position = Vector2(PANEL_PADDING_X, schedule_y)
+	schedule_label.size = Vector2(inner_width, PANEL_SCHEDULE_HEIGHT)
+
+	vl_prefix_label.position = Vector2(PANEL_PADDING_X, vl_row_y)
+	vl_prefix_label.size = Vector2(PANEL_GAUGE_LABEL_WIDTH, PANEL_GAUGE_ROW_HEIGHT)
+	vl_gauge_track.position = Vector2(PANEL_PADDING_X + PANEL_GAUGE_LABEL_WIDTH + PANEL_GAUGE_LABEL_GAP, vl_row_y + PANEL_GAUGE_TOP_INSET)
+	vl_gauge_track.size = Vector2(maxf(left_width - PANEL_GAUGE_LABEL_WIDTH - PANEL_GAUGE_LABEL_GAP, 20.0), PANEL_GAUGE_HEIGHT)
+	vl_value_label.position = Vector2(right_x, vl_row_y)
+	vl_value_label.size = Vector2(right_width, PANEL_GAUGE_ROW_HEIGHT)
+
+	ach_prefix_label.position = Vector2(PANEL_PADDING_X, ach_row_y)
+	ach_prefix_label.size = Vector2(PANEL_GAUGE_LABEL_WIDTH, PANEL_GAUGE_ROW_HEIGHT)
+	ach_gauge_track.position = Vector2(PANEL_PADDING_X + PANEL_GAUGE_LABEL_WIDTH + PANEL_GAUGE_LABEL_GAP, ach_row_y + PANEL_GAUGE_TOP_INSET)
+	ach_gauge_track.size = Vector2(maxf(left_width - PANEL_GAUGE_LABEL_WIDTH - PANEL_GAUGE_LABEL_GAP, 20.0), PANEL_GAUGE_HEIGHT)
+	ach_value_label.position = Vector2(right_x, ach_row_y)
+	ach_value_label.size = Vector2(right_width, PANEL_GAUGE_ROW_HEIGHT)
+
+	vl_gauge_fill.position = Vector2.ZERO
+	vl_gauge_fill.size.y = vl_gauge_track.size.y
+	ach_gauge_fill.position = Vector2.ZERO
+	ach_gauge_fill.size.y = ach_gauge_track.size.y
+
+func _apply_gauge_fill(track: ColorRect, fill: ColorRect, ratio: float, fill_color: Color) -> void:
+	if track == null or fill == null:
+		return
+	track.color = gauge_track_color
+	fill.color = fill_color
+	fill.size = Vector2(maxf(track.size.x * clampf(ratio, 0.0, 1.0), 0.0), track.size.y)
+
+func _vl_ratio() -> float:
+	return clampf(viral_load / PANEL_VL_MAX_REFERENCE, 0.0, 1.0)
+
+func _ach_ratio() -> float:
+	if is_equal_approx(ach_max, ach_min):
+		return 1.0
+	return clampf((ach_current - ach_min) / (ach_max - ach_min), 0.0, 1.0)
 
 func _short_room_name(value: String) -> String:
 	var normalized := value.replace("\\", "/")
 	var parts := normalized.split("/")
 	if parts.is_empty():
-		return value
-	return parts[parts.size() - 1]
+		return _prettify_room_name(value)
+	return _prettify_room_name(parts[parts.size() - 1])
+
+func _prettify_room_name(raw_name: String) -> String:
+	var text := raw_name.replace("_", " ").strip_edges()
+	if text == "":
+		return raw_name
+
+	# Insert spaces between camel-case words while keeping acronyms intact.
+	var spaced := ""
+	for idx in range(text.length()):
+		var ch := text[idx]
+		if idx > 0 and ch >= "A" and ch <= "Z":
+			var prev := text[idx - 1]
+			if prev != " " and not (prev >= "A" and prev <= "Z"):
+				spaced += " "
+		spaced += ch
+
+	# Collapse redundant trailing "Room" labels (e.g., "Preschool Room" -> "Preschool").
+	if spaced.ends_with(" Room"):
+		spaced = spaced.left(spaced.length() - 5).strip_edges()
+
+	return spaced
 
 func display_name() -> String:
 	return _short_room_name(room_id)

@@ -101,11 +101,11 @@
   \def\imagewidth{15cm}   % <-- change if you need a wider/narrower diagram
 
   \node[anchor=south west, inner sep=0pt] (ctrl) at (0,0)
-    {\includegraphics[width=\imagewidth]{GameControls_JoyPad.png}};
+    {\includegraphics[width=\imagewidth]{Logitech_JoyPad_picture.png}};
 
   % ---- Left-side controls ----
-  \coordinate (leftTrigger)   at (2.2, 7.8);   % Left trigger  (LT / L2)
-  \coordinate (leftShoulder)  at (2.8, 6.8);   % Left bumper   (LB / L1)
+  \coordinate (leftTrigger)   at (4.8, 8.5);   % Left trigger  (LT / L2)
+  \coordinate (leftShoulder)  at (2.8, 7.5);   % Left bumper   (LB / L1)
   \coordinate (leftStick)     at (3.8, 3.8);   % Left analog stick
   \coordinate (dpadLeft)      at (2.4, 4.6);   % D-pad left arrow
   \coordinate (dpadRight)     at (3.6, 4.6);   % D-pad right arrow
@@ -128,7 +128,7 @@
   % ==========================================================
 
   % ---- Left-side labels (offset to the left) ----
-  \joyCallout{leftTrigger}   {-3.0,  0.8} {Left Trigger\\\textbf{Zoom In}}
+  \joyCallout{leftTrigger}   {-5.0,  1.5} {Left Trigger\\\textbf{Zoom In}}
   \joyCallout{leftShoulder}  {-3.0,  0.2} {Left Shoulder\\\textbf{Toggle Health Mode}}
   \joyCallout{leftStick}     {-3.2,  0.0} {Left Stick\\\textbf{Pan Camera}}
   \joyCallout{dpadLeft}      {-3.0,  0.8} {D-pad Left\\\textbf{Previous Room} / Tut.\ Prev.}

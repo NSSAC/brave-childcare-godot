@@ -27,6 +27,7 @@ var runtime_end_s: float = 0.0 # Time when the simulation ends, e.g. 17 * 3600 =
 var prev_abs_event_s: float = 0.0 # Time since last absorption event
 var is_simulation_active: bool = false
 var is_simulation_paused: bool = false
+var enable_microactivities: bool = true
 
 func current_time_s() -> float:
 	return sim_clock_s

@@ -6,7 +6,7 @@ extends Node
 @onready var save_object_button: Button = %SaveObjectButton
 @onready var start_simulation_button: Button = %StartSimulationButton
 @onready var start_simulation_default_button: Button = %StartSimulationDefaultButton
-@onready var title_label: Label = $TitleScreen/VBoxContainer/TitleLabel
+@onready var title_label: Label = $TitleScreen/TitleLabel
 @onready var player_name_input: LineEdit = %PlayerNameInput
 @onready var player_name_auto_label: Label = %PlayerNameAutoLabel
 
@@ -441,12 +441,14 @@ func _update_room_cards(selected_room) -> void:
 
 		card.add_theme_stylebox_override("panel", _room_card_style(is_selected, is_alerting))
 
-		var title_line := _short_room_name(room.room_id)
+		var title_line: String = _short_room_name(room.room_id)
+		if room.has_method("display_name"):
+			title_line = str(room.display_name())
 		if room_description != "":
 			title_line += " - " + room_description
 		var title_prefix := "[b]" + ("● " if is_selected else "○ ") + title_line + "[/b]"
 		var alert_text := "[color=#ff6b6b]ALERT[/color]" if is_alerting else "[color=#9ba7b4]Normal[/color]"
-		var details := "ACH %s %.1f  |  VL [color=#%s]%.1f %s[/color]" % [mode_text, room.ach_current, vl_color.to_html(false), room.viral_load, trend_symbol]
+		var details := "ACH %s %.1f  |  Load [color=#%s]%.1f %s[/color]" % [mode_text, room.ach_current, vl_color.to_html(false), room.viral_load, trend_symbol]
 		label.text = "%s\n%s  |  %s" % [title_prefix, details, alert_text]
 
 func _on_room_card_gui_input(event: InputEvent, card: PanelContainer) -> void:
@@ -752,14 +754,12 @@ func _refresh_last_run_summary(stats_file_path: String = "") -> void:
 	var exposure_max: float = float(row.get("exposure_max_cumulative", 0.0))
 	var end_reason: String = str(row.get("end_reason", "n/a"))
 
-	last_run_summary_label.text = "Last Run %s | %s | Alerts %d | Cost $%.2f | Exposure Avg %.2f Max %.2f | End %s" % [
-		run_id,
+	last_run_summary_label.text = " %s (run: %s) | Alerts %d | Cost $%.2f | Exposure Avg %d" % [
 		player_name,
+		run_id,
 		alert_count,
 		total_cost,
-		exposure_mean,
-		exposure_max,
-		end_reason
+		exposure_mean
 	]
 
 func _safe_close_file(file_handle: FileAccess) -> void:
@@ -1056,6 +1056,7 @@ func load_config(file: String):
 	Global.room_output_file_path = room_output_file
 	Global.exposure_output_file_path = exposure_output_file
 	Global.stats_output_file_path = stats_output_file
+	Global.enable_microactivities = bool(config_data.get("enable_microactivities", true))
 
 	var requested_sim_speed: float = float(config_data["sim_speed_scale"])
 	_apply_sim_speed_scale(requested_sim_speed)

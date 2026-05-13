@@ -14,6 +14,7 @@ script = ExtResource("1_2xlsa")
 metadata/_custom_type_script = "uid://c1yg2thtd0yu4"
 
 [node name="Halo" parent="." instance=ExtResource("2_t7cnq")]
+visible = false
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("3_2xlsa")

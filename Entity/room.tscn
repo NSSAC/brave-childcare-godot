@@ -5,23 +5,101 @@
 [node name="Room" type="Area2D" groups=["room"]]
 script = ExtResource("1_qx8c0")
 
-[node name="LabelBackground" type="ColorRect" parent="."]
+[node name="LabelBackground" type="Panel" parent="."]
 top_level = true
+z_index = 1
 offset_left = -120.0
 offset_top = -120.0
 offset_right = 317.0
 offset_bottom = -20.0
+size_flags_horizontal = 3
 mouse_filter = 2
-color = Color(0.2, 0.2, 0.2, 0.55)
 
-[node name="Label" type="Label" parent="."]
-top_level = true
-offset_left = -120.0
-offset_top = -120.0
-offset_right = 304.0
-offset_bottom = -20.0
-theme_override_font_sizes/font_size = 20
+[node name="TitleLabel" type="Label" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = 316.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 24
 text = "Room"
+clip_text = true
+
+[node name="ScheduleLabel" type="Label" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 34.0
+offset_right = 316.0
+offset_bottom = 52.0
+theme_override_font_sizes/font_size = 18
+text = "Schedule: n/a"
+clip_text = true
+
+[node name="VLPrefixLabel" type="Label" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 58.0
+offset_right = 38.0
+offset_bottom = 78.0
+theme_override_font_sizes/font_size = 19
+text = "VL"
+
+[node name="VLGaugeTrack" type="ColorRect" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 63.0
+offset_right = 188.0
+offset_bottom = 73.0
+color = Color(0, 0, 0, 0.12)
+
+[node name="VLGaugeFill" type="ColorRect" parent="LabelBackground/VLGaugeTrack"]
+layout_mode = 0
+offset_right = 80.0
+offset_bottom = 10.0
+color = Color(0.266667, 0.788235, 0.419608, 1)
+
+[node name="ACHPrefixLabel" type="Label" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 86.0
+offset_right = 48.0
+offset_bottom = 106.0
+theme_override_font_sizes/font_size = 19
+text = "ACH"
+
+[node name="ACHGaugeTrack" type="ColorRect" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 91.0
+offset_right = 188.0
+offset_bottom = 101.0
+color = Color(0, 0, 0, 0.12)
+
+[node name="ACHGaugeFill" type="ColorRect" parent="LabelBackground/ACHGaugeTrack"]
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 10.0
+color = Color(0.298039, 0.545098, 0.960784, 1)
+
+[node name="VLValueLabel" type="Label" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 200.0
+offset_top = 58.0
+offset_right = 316.0
+offset_bottom = 78.0
+theme_override_font_sizes/font_size = 19
+text = "0"
+horizontal_alignment = 2
+
+[node name="ACHValueLabel" type="Label" parent="LabelBackground"]
+layout_mode = 0
+offset_left = 200.0
+offset_top = 86.0
+offset_right = 316.0
+offset_bottom = 106.0
+theme_override_font_sizes/font_size = 19
+text = "3"
+horizontal_alignment = 2
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
 polygon = PackedVector2Array(-128, -96, 128, -96, 128, 96, -128, 96)

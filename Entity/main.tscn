@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://cn716rk61mj6n"]
+[gd_scene load_steps=17 format=3 uid="uid://cn716rk61mj6n"]
 
 [ext_resource type="Script" uid="uid://ti3hkbtijubp" path="res://Entity/main.gd" id="1_7eq1f"]
 [ext_resource type="PackedScene" uid="uid://b48yck4fdkxok" path="res://Map/map_level_1.tscn" id="2_lhxn6"]
@@ -87,6 +87,46 @@ corner_radius_bottom_left = 10
 font_size = 150
 shadow_size = 5
 shadow_color = Color(0, 0, 0, 0.772549)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_sim_hover"]
+bg_color = Color(0.32, 0.62, 0.35, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.19, 0.4, 0.2, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_sim_pressed"]
+bg_color = Color(0.18, 0.39, 0.21, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.11, 0.24, 0.13, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_sim_normal"]
+bg_color = Color(0.25, 0.52, 0.28, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.14, 0.31, 0.16, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 6
 
 [node name="Main" type="Node"]
 script = ExtResource("1_7eq1f")
@@ -390,7 +430,7 @@ size_flags_horizontal = 3
 [node name="ViralLoadGaugeLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/ViralDialVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
-text = "Real-time Viral Load"
+text = "Real-time Load"
 
 [node name="PanelViralLoadGauge" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/ViralDialVBox"]
 unique_name_in_owner = true
@@ -400,7 +440,7 @@ size_flags_horizontal = 3
 script = ExtResource("7_x4r0u")
 dial_style = "speedometer"
 max_value = 800.0
-label_text = "Viral Load"
+label_text = "Load"
 value_decimals = 0
 accent_color = Color(1, 0.521569, 0.301961, 1)
 value_font_size = 30
@@ -697,30 +737,37 @@ grow_vertical = 2
 texture = ExtResource("6_u08er")
 expand_mode = 3
 
-[node name="VBoxContainer" type="VBoxContainer" parent="TitleScreen"]
-anchors_preset = 13
+[node name="TitleLabel" type="Label" parent="TitleScreen"]
+anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -380.0
-offset_top = 62.0
-offset_right = 380.0
-offset_bottom = -43.0
+offset_left = -420.0
+offset_top = 22.0
+offset_right = 420.0
+offset_bottom = 286.0
 grow_horizontal = 2
-grow_vertical = 2
-alignment = 1
-
-[node name="TitleLabel" type="Label" parent="TitleScreen/VBoxContainer"]
-layout_mode = 2
 text = "BRAVE
 Childcare Simulator
 v 3.0"
 label_settings = SubResource("LabelSettings_7eq1f")
 horizontal_alignment = 1
 
+[node name="VBoxContainer" type="VBoxContainer" parent="TitleScreen"]
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -494.0
+offset_top = 750.0
+offset_right = 494.0
+offset_bottom = 559.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
 [node name="GridContainer" type="GridContainer" parent="TitleScreen/VBoxContainer"]
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-size_flags_vertical = 3
 
 [node name="NameRow" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
 layout_mode = 2
@@ -750,26 +797,21 @@ horizontal_alignment = 1
 
 [node name="StartSimulationDefaultButton" type="Button" parent="TitleScreen/VBoxContainer"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 8
-theme_override_font_sizes/font_size = 56
-text = "Start Simulation"
-
-[node name="SecondaryButtonRow" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
-layout_mode = 2
-
-[node name="SaveObjectButton" type="Button" parent="TitleScreen/VBoxContainer/SecondaryButtonRow"]
-unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
-text = "Save Object File"
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.95, 1, 0.95, 1)
+theme_override_font_sizes/font_size = 56
+theme_override_styles/hover = SubResource("StyleBoxFlat_start_sim_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_start_sim_pressed")
+theme_override_styles/normal = SubResource("StyleBoxFlat_start_sim_normal")
+text = "Start Simulation"
 
-[node name="StartSimulationButton" type="Button" parent="TitleScreen/VBoxContainer/SecondaryButtonRow"]
-unique_name_in_owner = true
+[node name="PrimarySummaryGap" type="Control" parent="TitleScreen/VBoxContainer"]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
-text = "Start simulation with new settings"
 
 [node name="LastRunSummaryPanel" type="PanelContainer" parent="TitleScreen/VBoxContainer"]
 layout_mode = 2
@@ -785,9 +827,28 @@ theme_override_constants/margin_bottom = 8
 [node name="LastRunSummaryLabel" type="Label" parent="TitleScreen/VBoxContainer/LastRunSummaryPanel/LastRunSummaryMargin"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 28
 text = "Last Run: none yet"
+horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="SecondaryButtonRow" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="SaveObjectButton" type="Button" parent="TitleScreen/VBoxContainer/SecondaryButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+text = "Save Object File"
+
+[node name="StartSimulationButton" type="Button" parent="TitleScreen/VBoxContainer/SecondaryButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Start simulation with new settings"
 
 [node name="SaveTimer" type="Timer" parent="."]
 unique_name_in_owner = true
