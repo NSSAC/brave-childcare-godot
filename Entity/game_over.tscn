@@ -1,0 +1,310 @@
+[gd_scene load_steps=16 format=3 uid="uid://b4k1m6y7enphl"]
+
+[ext_resource type="Script" uid="uid://ctwds80e321mf" path="res://Entity/game_over.gd" id="1_ow8o7"]
+[ext_resource type="Script" uid="uid://chmjpa2ijgwwq" path="res://Entity/ui_run_chart.gd" id="2_5l4jn"]
+[ext_resource type="Texture2D" uid="uid://dad0q3hb0hrbc" path="res://Art/Carpet_red-blue.png" id="3_0cmm4"]
+[ext_resource type="Texture2D" uid="uid://2bq86w3ikr5i" path="res://Art/confetti_flake.png" id="3_frnj3"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_frnj3"]
+particles_animation = true
+particles_anim_h_frames = 2
+particles_anim_v_frames = 1
+particles_anim_loop = true
+
+[sub_resource type="Curve" id="Curve_wh0aj"]
+_data = [Vector2(0.00882353, 0.996778), 0.0, 0.0, 0, 0, Vector2(0.747059, 0.985502), 0.0, 0.0, 0, 0, Vector2(1, 0.413631), -2.84808, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_5j33m"]
+curve = SubResource("Curve_wh0aj")
+
+[sub_resource type="Gradient" id="ColorGradient"]
+offsets = PackedFloat32Array(0, 0.25, 0.5, 0.75, 1)
+colors = PackedColorArray(1, 0.2, 0.2, 1, 1, 0.8, 0.2, 1, 0.2, 1, 0.8, 1, 0.2, 0.8, 1, 1, 1, 1, 0.2, 1)
+
+[sub_resource type="GradientTexture1D" id="ColorRamp"]
+gradient = SubResource("ColorGradient")
+
+[sub_resource type="Curve" id="Curve_2vkny"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.235294, 0.779306), 0.0, 0.0, 0, 0, Vector2(0.708824, 1), 0.0, 0.0, 0, 0, Vector2(0.711765, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 5
+
+[sub_resource type="CurveTexture" id="CurveTexture_wh0aj"]
+curve = SubResource("Curve_2vkny")
+
+[sub_resource type="Curve" id="Curve_frnj3"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.639706, 0.988724), 0.0, 0.0, 0, 0, Vector2(0.994118, 0.642379), -1.75843, -1.75843, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_2vkny"]
+curve = SubResource("Curve_frnj3")
+
+[sub_resource type="ParticleProcessMaterial" id="ConfettiMaterialUp"]
+emission_shape = 3
+emission_box_extents = Vector3(240, 32, 1)
+angle_min = -30.0
+angle_max = 30.0
+direction = Vector3(0, -1, 0)
+initial_velocity_min = 130.0
+initial_velocity_max = 160.0
+angular_velocity_min = -180.0
+angular_velocity_max = 180.0
+gravity = Vector3(0, 75, 0)
+linear_accel_min = 10.0
+linear_accel_max = 30.0
+damping_min = 72.0
+damping_max = 82.0
+damping_curve = SubResource("CurveTexture_wh0aj")
+scale_max = 2.0
+scale_curve = SubResource("CurveTexture_2vkny")
+color_initial_ramp = SubResource("ColorRamp")
+alpha_curve = SubResource("CurveTexture_5j33m")
+hue_variation_min = -0.03
+hue_variation_max = 0.03
+anim_speed_min = 2.0
+anim_speed_max = 5.0
+anim_offset_max = 1.0
+
+[sub_resource type="ParticleProcessMaterial" id="ConfettiMaterial"]
+emission_shape = 3
+emission_box_extents = Vector3(960, 8, 1)
+direction = Vector3(0, 1, 0)
+initial_velocity_min = 130.0
+initial_velocity_max = 160.0
+angular_velocity_min = -180.0
+angular_velocity_max = 180.0
+gravity = Vector3(0, 100, 0)
+linear_accel_min = 10.0
+linear_accel_max = 30.0
+damping_min = 65.0
+damping_max = 72.0
+damping_curve = SubResource("CurveTexture_wh0aj")
+scale_max = 2.0
+scale_curve = SubResource("CurveTexture_2vkny")
+color_initial_ramp = SubResource("ColorRamp")
+alpha_curve = SubResource("CurveTexture_5j33m")
+hue_variation_min = -0.03
+hue_variation_max = 0.03
+anim_speed_min = 2.0
+anim_speed_max = 5.0
+anim_offset_max = 1.0
+
+[node name="GameOverLayer" type="CanvasLayer"]
+layer = 7
+visible = false
+script = ExtResource("1_ow8o7")
+
+[node name="BackdropBg" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_0cmm4")
+expand_mode = 1
+stretch_mode = 1
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.06, 0.55)
+
+[node name="ConfettiParticles Up" type="GPUParticles2D" parent="."]
+unique_name_in_owner = true
+material = SubResource("CanvasItemMaterial_frnj3")
+position = Vector2(960, 120)
+emitting = false
+amount = 300
+texture = ExtResource("3_frnj3")
+lifetime = 15.0
+one_shot = true
+explosiveness = 0.97
+process_material = SubResource("ConfettiMaterialUp")
+
+[node name="ConfettiParticles Rain" type="GPUParticles2D" parent="."]
+unique_name_in_owner = true
+material = SubResource("CanvasItemMaterial_frnj3")
+position = Vector2(960, 0)
+amount = 900
+texture = ExtResource("3_frnj3")
+lifetime = 22.0
+preprocess = 3.0
+process_material = SubResource("ConfettiMaterial")
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(1800, 980)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Center/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="GameOverTitleLabel" type="Label" parent="Center/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 73
+text = "Game Over"
+horizontal_alignment = 1
+
+[node name="GameOverSubtitleLabel" type="Label" parent="Center/Card/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 39
+text = "Great work managing your childcare center."
+horizontal_alignment = 1
+
+[node name="GameOverMedalLabel" type="Label" parent="Center/Card/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 47
+text = "Silver Sippy Cup"
+horizontal_alignment = 1
+
+[node name="ArtSlotCenter" type="CenterContainer" parent="Center/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="ArtSlotPanel" type="PanelContainer" parent="Center/Card/Margin/VBox/ArtSlotCenter"]
+layout_mode = 2
+
+[node name="ArtSlotMargin" type="MarginContainer" parent="Center/Card/Margin/VBox/ArtSlotCenter/ArtSlotPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="GameOverAwardArt" type="TextureRect" parent="Center/Card/Margin/VBox/ArtSlotCenter/ArtSlotPanel/ArtSlotMargin"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 220)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GameOverSummaryLabel" type="Label" parent="Center/Card/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 29
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ChartsRow" type="HBoxContainer" parent="Center/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ExposurePanel" type="PanelContainer" parent="Center/Card/Margin/VBox/ChartsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ExposureMargin" type="MarginContainer" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="ExposureVBox" type="VBoxContainer" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExposureTitle" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 29
+text = "Exposure"
+
+[node name="GameOverExposureStatusLabel" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Loading exposure history..."
+
+[node name="GameOverExposureChart" type="Control" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 338)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_5l4jn")
+
+[node name="CostPanel" type="PanelContainer" parent="Center/Card/Margin/VBox/ChartsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CostMargin" type="MarginContainer" parent="Center/Card/Margin/VBox/ChartsRow/CostPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="CostVBox" type="VBoxContainer" parent="Center/Card/Margin/VBox/ChartsRow/CostPanel/CostMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CostTitle" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/CostPanel/CostMargin/CostVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 29
+text = "Cost"
+
+[node name="GameOverCostStatusLabel" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/CostPanel/CostMargin/CostVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Loading cost history..."
+
+[node name="GameOverCostChart" type="Control" parent="Center/Card/Margin/VBox/ChartsRow/CostPanel/CostMargin/CostVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 338)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_5l4jn")
+
+[node name="ButtonsColumn" type="VBoxContainer" parent="Center/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="GameOverContinueButton" type="Button" parent="Center/Card/Margin/VBox/ButtonsColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(560, 76)
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "Return to Title Screen"
+
+[node name="GameOverReturnProgress" type="ProgressBar" parent="Center/Card/Margin/VBox/ButtonsColumn/GameOverContinueButton"]
+unique_name_in_owner = true
+self_modulate = Color(1, 1, 1, 0.35)
+z_index = -1
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+show_percentage = false
+
+[node name="GameOverStayButton" type="Button" parent="Center/Card/Margin/VBox/ButtonsColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 42)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 22
+text = "Stay"

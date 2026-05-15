@@ -7,14 +7,21 @@ extends Node
 @onready var start_simulation_button: Button = %StartSimulationButton
 @onready var start_simulation_default_button: Button = %StartSimulationDefaultButton
 @onready var title_label: Label = $TitleScreen/TitleLabel
+@onready var title_screen_vbox: VBoxContainer = $TitleScreen/VBoxContainer
 @onready var player_name_input: LineEdit = %PlayerNameInput
 @onready var player_name_auto_label: Label = %PlayerNameAutoLabel
+@onready var title_summary_gap: Control = $TitleScreen/VBoxContainer/PrimarySummaryGap
 
 @onready var title_screen: CanvasLayer = %TitleScreen
 @onready var map: Node2D = %Map
 @onready var camera_2d: Camera2D = %Camera2D
 @onready var end_simulation_button: Button = %EndSimulationButton
 @onready var last_run_summary_label: Label = %LastRunSummaryLabel
+@onready var title_exposure_chart: Control = %TitleExposureChart
+@onready var title_exposure_chart_status: Label = %TitleExposureChartStatus
+@onready var title_cost_chart: Control = %TitleCostChart
+@onready var title_cost_chart_status: Label = %TitleCostChartStatus
+@onready var game_over_layer: CanvasLayer = %GameOverLayer
 @onready var pause_overlay: Control = %PauseOverlay
 @onready var room_panel: PanelContainer = %RoomPanel
 @onready var room_panel_text: RichTextLabel = %RoomPanelText
@@ -94,6 +101,13 @@ extends Node
 @export var room_panel_line_separation_max: int = 8
 @export var room_panel_margin_min: int = 12
 @export var room_panel_margin_max: int = 24
+@export var title_screen_title_font_size_min: int = 60
+@export var title_screen_title_font_size_max: int = 150
+@export var title_screen_title_top_fraction: float = 0.02
+@export var title_screen_content_top_fraction: float = 0.40
+@export var title_screen_content_height_fraction: float = 0.45
+@export var title_screen_summary_gap_fraction: float = 0.15
+@export var comparison_curated_run_ids: PackedStringArray = ["id-0115", "id-0110"]
 @export var panel_vl_gauge_max: float = 1000.0
 @export var panel_ach_gauge_max: float = 7.0
 @export var panel_alert_lamp_pulse_hz: float = 1.6
@@ -147,6 +161,342 @@ const ROOM_VL_COLOR_POINTS := [
 	{"value": 800.0, "color": Color("#cf4dff")}
 ]
 const SIM_SPEED_STEP_MIN: float = 0.001
+const EXPOSURE_CHART_COLORS: Array[Color] = [
+	Color("#7ec8ff"),
+	Color("#ffab6f"),
+	Color("#9ee493"),
+]
+
+func _run_id_number(run_id: String) -> int:
+	var parts: PackedStringArray = run_id.split("-")
+	if parts.size() != 2:
+		return -1
+	return int(parts[1])
+
+func _sort_run_ids_desc(a: String, b: String) -> bool:
+	return _run_id_number(a) > _run_id_number(b)
+
+func _normalize_run_id(raw_value: String) -> String:
+	var text: String = raw_value.strip_edges().to_lower()
+	if text == "":
+		return ""
+	if text.begins_with("id-"):
+		return "id-%04d" % int(text.trim_prefix("id-"))
+	return "id-%04d" % int(text)
+
+func _outputs_dir_path() -> String:
+	var project_outputs: String = ProjectSettings.globalize_path("res://outputs")
+	if DirAccess.dir_exists_absolute(project_outputs):
+		return project_outputs
+
+	if active_config_path != "":
+		var active_outputs: String = active_config_path.get_base_dir().path_join("outputs")
+		if DirAccess.dir_exists_absolute(active_outputs):
+			return active_outputs
+
+	var default_config_abs: String = ProjectSettings.globalize_path(default_config_path)
+	var default_outputs: String = default_config_abs.get_base_dir().get_base_dir().path_join("outputs")
+	if DirAccess.dir_exists_absolute(default_outputs):
+		return default_outputs
+
+	return project_outputs
+
+func _list_available_exposure_run_ids() -> PackedStringArray:
+	var outputs_dir: String = _outputs_dir_path()
+	var dir: DirAccess = DirAccess.open(outputs_dir)
+	if dir == null:
+		return PackedStringArray()
+
+	var run_ids: Array[String] = []
+	var run_id_regex: RegEx = RegEx.new()
+	run_id_regex.compile("^output_childcare_people_movement_exposure_(id-\\d{4})\\.json$")
+
+	dir.list_dir_begin()
+	while true:
+		var file_name: String = dir.get_next()
+		if file_name == "":
+			break
+		if dir.current_is_dir():
+			continue
+		var match: RegExMatch = run_id_regex.search(file_name)
+		if match != null:
+			run_ids.append(match.get_string(1))
+	dir.list_dir_end()
+
+	run_ids.sort_custom(Callable(self, "_sort_run_ids_desc"))
+	return PackedStringArray(run_ids)
+
+func _selected_exposure_run_ids() -> PackedStringArray:
+	var available: PackedStringArray = _list_available_exposure_run_ids()
+	var selected: Array[String] = []
+	if available.size() > 0:
+		selected.append(available[0])
+
+	for run_id_raw in comparison_curated_run_ids:
+		var run_id: String = _normalize_run_id(str(run_id_raw))
+		if run_id == "" or selected.has(run_id):
+			continue
+		selected.append(run_id)
+		if selected.size() >= 3:
+			break
+
+	for run_id in available:
+		if selected.size() >= 3:
+			break
+		if not selected.has(run_id):
+			selected.append(run_id)
+
+	return PackedStringArray(selected)
+
+func _run_chart_label(idx: int, run_id: String) -> String:
+	if idx == 0:
+		return "Latest (%s)" % run_id
+	if idx == 1:
+		return "Baseline A (%s)" % run_id
+	if idx == 2:
+		return "Baseline B (%s)" % run_id
+	return "Run %d (%s)" % [idx + 1, run_id]
+
+func _load_total_exposure_series(run_id: String) -> Array[Dictionary]:
+	var file_path: String = _outputs_dir_path().path_join("output_childcare_people_movement_exposure_%s.json" % run_id)
+	if not FileAccess.file_exists(file_path):
+		return []
+
+	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		return []
+
+	var totals_by_time: Dictionary = {}
+	while not file.eof_reached():
+		var line: String = file.get_line().strip_edges()
+		if line == "":
+			continue
+		var parsed = JSON.parse_string(line)
+		if not (parsed is Dictionary):
+			continue
+		var row: Dictionary = parsed
+		if str(row.get("event", "")) != "person_exposure":
+			continue
+
+		var time_value: float = float(row.get("time", -1.0))
+		if time_value < 0.0:
+			continue
+		var exposure_value: float = float(row.get("cumulative_viral_exposure", 0.0))
+		var total: float = float(totals_by_time.get(time_value, 0.0)) + exposure_value
+		totals_by_time[time_value] = total
+
+	var times: Array = totals_by_time.keys()
+	times.sort()
+	var points: Array[Dictionary] = []
+	for time_key in times:
+		points.append({
+			"time": float(time_key),
+			"value": float(totals_by_time[time_key]),
+		})
+	return points
+
+func _load_total_cost_series(run_id: String) -> Array[Dictionary]:
+	var file_path: String = _outputs_dir_path().path_join("output_childcare_rooms_%s.json" % run_id)
+	if not FileAccess.file_exists(file_path):
+		return []
+
+	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		return []
+
+	var cost_by_time: Dictionary = {}
+	while not file.eof_reached():
+		var line: String = file.get_line().strip_edges()
+		if line == "":
+			continue
+		var parsed: Variant = JSON.parse_string(line)
+		if not (parsed is Dictionary):
+			continue
+		var row: Dictionary = parsed
+		if str(row.get("event", "")) != "room_state":
+			continue
+
+		var time_value: float = float(row.get("time", -1.0))
+		if time_value < 0.0:
+			continue
+		if cost_by_time.has(time_value):
+			continue
+		cost_by_time[time_value] = float(row.get("ach_total_cost", 0.0))
+
+	var times: Array = cost_by_time.keys()
+	times.sort()
+	var points: Array[Dictionary] = []
+	for time_key in times:
+		points.append({
+			"time": float(time_key),
+			"value": float(cost_by_time[time_key]),
+		})
+	return points
+
+func _refresh_title_exposure_chart() -> void:
+	if title_exposure_chart == null:
+		return
+
+	var payload: Dictionary = _build_comparison_chart_payload(false)
+	var series: Array[Dictionary] = payload.get("series", [])
+	var status_text: String = str(payload.get("status", ""))
+
+	if title_exposure_chart.has_method("set_series"):
+		title_exposure_chart.call("set_series", series, "Y: Total Exposure (sum over people) | X: Time of day")
+
+	if title_exposure_chart_status != null:
+		title_exposure_chart_status.text = status_text
+
+func _refresh_title_cost_chart() -> void:
+	if title_cost_chart == null:
+		return
+
+	var payload: Dictionary = _build_comparison_chart_payload(true)
+	var series: Array[Dictionary] = payload.get("series", [])
+	var status_text: String = str(payload.get("status", ""))
+
+	if title_cost_chart.has_method("set_series"):
+		title_cost_chart.call("set_series", series, "Y: Total Cost | X: Time of day")
+
+	if title_cost_chart_status != null:
+		title_cost_chart_status.text = status_text
+
+func _build_comparison_chart_payload(use_cost_series: bool) -> Dictionary:
+	var run_ids: PackedStringArray = _selected_exposure_run_ids()
+	var series: Array[Dictionary] = []
+	var missing_run_ids: Array[String] = []
+
+	for idx in range(run_ids.size()):
+		var run_id: String = run_ids[idx]
+		var points: Array[Dictionary] = []
+		if use_cost_series:
+			points = _load_total_cost_series(run_id)
+		else:
+			points = _load_total_exposure_series(run_id)
+		if points.is_empty():
+			missing_run_ids.append(run_id)
+			continue
+		var color_idx: int = idx % EXPOSURE_CHART_COLORS.size()
+		series.append({
+			"label": _run_chart_label(idx, run_id),
+			"color": EXPOSURE_CHART_COLORS[color_idx],
+			"points": points,
+		})
+
+	var empty_message: String = "Cost chart: no valid room run files found in outputs/." if use_cost_series else "Exposure chart: no valid run files found in outputs/."
+	var status_text := ""
+	if series.is_empty():
+		status_text = empty_message
+	elif missing_run_ids.is_empty():
+		status_text = "Comparing latest run with curated runs."
+	else:
+		status_text = "Missing run files: %s" % ", ".join(missing_run_ids)
+
+	return {
+		"series": series,
+		"status": status_text,
+	}
+
+func _achievement_for_row(row: Dictionary) -> Dictionary:
+	var alert_count: int = int(row.get("alert_trigger_count", 9999))
+	var avg_exposure: float = float(row.get("exposure_mean_cumulative", INF))
+	var total_cost: float = float(row.get("ach_total_cost", INF))
+
+	if alert_count <= 2 and avg_exposure <= 60000.0 and total_cost <= 90.0:
+		return {
+			"medal": "Golden Guardian",
+			"color": Color("#f5c542"),
+		}
+	if alert_count <= 6 and avg_exposure <= 120000.0 and total_cost <= 140.0:
+		return {
+			"medal": "Silver Safekeeper",
+			"color": Color("#d5dee9"),
+		}
+	if alert_count <= 12 and avg_exposure <= 220000.0 and total_cost <= 220.0:
+		return {
+			"medal": "Bronze Care Builder",
+			"color": Color("#d18c52"),
+		}
+	return {
+		"medal": "Playroom Pal",
+		"color": Color("#8fd3ff"),
+	}
+
+func _game_over_summary_text(row: Dictionary) -> String:
+	if row.is_empty():
+		return "No run summary was recorded for this simulation."
+
+	var run_id: String = str(row.get("run_id", "n/a"))
+	var alerts: int = int(row.get("alert_trigger_count", 0))
+	var total_cost: float = float(row.get("ach_total_cost", 0.0))
+	var avg_exposure: float = float(row.get("exposure_mean_cumulative", 0.0))
+	var max_exposure: float = float(row.get("exposure_max_cumulative", 0.0))
+	return "Run %s | Alerts %d | Cost $%.2f | Avg Exposure %.0f | Max Exposure %.0f" % [
+		run_id,
+		alerts,
+		total_cost,
+		avg_exposure,
+		max_exposure,
+	]
+
+func _show_game_over(reason: String) -> void:
+	if game_over_layer == null:
+		_return_to_title_from_run()
+		return
+
+	var run_row: Dictionary = _read_last_run_summary_row(Global.stats_output_file_path)
+	var achievement: Dictionary = _achievement_for_row(run_row)
+	var exposure_payload: Dictionary = _build_comparison_chart_payload(false)
+	var cost_payload: Dictionary = _build_comparison_chart_payload(true)
+
+	var player_name: String = Global.player_name.strip_edges()
+	if player_name == "":
+		player_name = "Care Team Lead"
+	var reason_text: String = "You ended the simulation early." if reason == "manual" else "You successfully completed the full day."
+
+	var payload := {
+		"subtitle": "Great work, %s. %s" % [player_name, reason_text],
+		"medal": str(achievement.get("medal", "Playroom Pal")),
+		"medal_color": achievement.get("color", Color("#8fd3ff")),
+		"summary": _game_over_summary_text(run_row),
+		"exposure_series": exposure_payload.get("series", []),
+		"exposure_status": exposure_payload.get("status", ""),
+		"cost_series": cost_payload.get("series", []),
+		"cost_status": cost_payload.get("status", ""),
+	}
+
+	if game_over_layer.has_method("show_results"):
+		game_over_layer.call("show_results", payload)
+	else:
+		game_over_layer.visible = true
+
+func _hide_game_over() -> void:
+	if game_over_layer == null:
+		return
+	if game_over_layer.has_method("hide_layer"):
+		game_over_layer.call("hide_layer")
+	else:
+		game_over_layer.visible = false
+
+func _return_to_title_from_run() -> void:
+	title_screen.show()
+	map.hide()
+	_hide_game_over()
+	if player_name_input != null:
+		player_name_input.text = ""
+	Global.player_name = ""
+	if player_name_auto_label != null:
+		player_name_auto_label.visible = false
+	_update_player_name_labels()
+	_set_brave_mode(false)
+	_set_health_mode(false)
+	_refresh_last_run_summary(Global.stats_output_file_path)
+	_refresh_title_exposure_chart()
+	_refresh_title_cost_chart()
+	_update_room_panel(true)
+
+func _on_game_over_continue_pressed() -> void:
+	_return_to_title_from_run()
 
 func _fit_camera_to_map_contents() -> void:
 	if camera_2d == null or map == null:
@@ -312,6 +662,40 @@ func _update_room_panel_layout() -> void:
 		var caption = get_node_or_null(node_path)
 		if caption is Label:
 			(caption as Label).add_theme_font_size_override("font_size", caption_font_size)
+
+func _update_title_screen_layout() -> void:
+	if title_label == null or title_screen_vbox == null:
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	var title_font_size := int(round(clampf(viewport_size.y * 0.14, float(title_screen_title_font_size_min), float(title_screen_title_font_size_max))))
+	if title_label.label_settings != null:
+		title_label.label_settings.font_size = title_font_size
+
+	var title_top := maxf(18.0, viewport_size.y * title_screen_title_top_fraction)
+	title_label.offset_top = title_top
+	title_label.offset_bottom = title_top + maxf(140.0, float(title_font_size) * 1.8)
+
+	var content_width := clampf(viewport_size.x * 0.52, 760.0, 1100.0)
+	var content_left := -content_width * 0.5
+	var content_top := clampf(viewport_size.y * title_screen_content_top_fraction, 220.0, viewport_size.y * 0.55)
+	var content_height := clampf(viewport_size.y * title_screen_content_height_fraction, 260.0, viewport_size.y * 0.54)
+
+	title_screen_vbox.anchor_left = 0.5
+	title_screen_vbox.anchor_right = 0.5
+	title_screen_vbox.anchor_top = 0.0
+	title_screen_vbox.anchor_bottom = 0.0
+	title_screen_vbox.offset_left = content_left
+	title_screen_vbox.offset_right = content_left + content_width
+	title_screen_vbox.offset_top = content_top
+	title_screen_vbox.offset_bottom = content_top + content_height
+	title_screen_vbox.alignment = 0
+
+	if title_summary_gap != null:
+		title_summary_gap.custom_minimum_size.y = clampf(viewport_size.y * title_screen_summary_gap_fraction, 120.0, 260.0)
 
 func _update_simulation_state_card() -> void:
 	var sim_time_s: float = Global.current_time_s()
@@ -1268,7 +1652,7 @@ func _build_tutorial_steps() -> Array[Dictionary]:
 			"image": "res://Art/tutorial/BRAVE_biosensor.png"
 		},
 		{
-			"title": "8 Rooms and 50 people, its a lot to manage",
+			"title": "Fifty people and 8 Rooms, its a lot to manage",
 			"body": "Each room card shows ACH, viral load trend, and alert status. Toggle between the rooms (⓵ & ⓸ or E & R).",
 			"target": "PanelRoomCards",
 			"image": "res://Art/tutorial/RoomCard.png"
@@ -1528,6 +1912,7 @@ func start_simulation(file: String):
 	_resolve_player_name_for_run()
 	load_config(file)
 
+	_hide_game_over()
 	title_screen.hide()
 	map.show()
 	Global.is_simulation_active = true
@@ -1596,18 +1981,10 @@ func _end_simulation(reason: String = "manual") -> void:
 	_safe_close_file(Global.room_save_file)
 	_safe_close_file(Global.exposure_save_file)
 	_safe_close_file(Global.stats_save_file)
-
-	title_screen.show()
-	map.hide()
-	if player_name_input != null:
-		player_name_input.text = ""
-	Global.player_name = ""
-	if player_name_auto_label != null:
-		player_name_auto_label.visible = false
-	_update_player_name_labels()
 	_set_brave_mode(false)
 	_set_health_mode(false)
-	_refresh_last_run_summary(Global.stats_output_file_path)
+	map.hide()
+	_show_game_over(reason)
 	_update_room_panel(true)
 
 func _on_save_object_button_pressed():
@@ -1785,8 +2162,15 @@ func _ready() -> void:
 	tutorial_skip_button.pressed.connect(_on_tutorial_skip_button_pressed)
 	end_simulation_button.pressed.connect(_on_end_simulation_button_pressed)
 	player_name_input.text_changed.connect(_on_player_name_input_changed)
+	if game_over_layer != null and game_over_layer.has_signal("continue_requested"):
+		var continue_callable := Callable(self, "_on_game_over_continue_pressed")
+		if not game_over_layer.is_connected("continue_requested", continue_callable):
+			game_over_layer.connect("continue_requested", continue_callable)
+	_hide_game_over()
 	_update_player_name_labels()
 	_refresh_last_run_summary()
+	_refresh_title_exposure_chart()
+	_refresh_title_cost_chart()
 	_init_tutorial_ui()
 
 	var home_dir = OS.get_environment("HOME")
@@ -1795,7 +2179,9 @@ func _ready() -> void:
 
 	save_timer.timeout.connect(_on_save_timer_timeout)
 	save_timer.wait_time = Global.save_every_s
+	_update_title_screen_layout()
 	get_viewport().size_changed.connect(_update_room_panel_layout)
+	get_viewport().size_changed.connect(_update_title_screen_layout)
 	_init_room_panel_widgets()
 	if panel_prev_room_button != null:
 		panel_prev_room_button.pressed.connect(_on_panel_prev_room_pressed)

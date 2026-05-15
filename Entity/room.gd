@@ -8,16 +8,24 @@ class_name Room extends Area2D
 @export var non_vent_decay_per_s: float = 0.0
 @export var label_offset: Vector2 = Vector2(-120.0, -90.0)
 @export var label_size: Vector2 = Vector2(330.0, 148.0)
+@export var label_anchor_target_path: NodePath
+@export var label_anchor_target_name: String = ""
+@export var label_anchor_offset: Vector2 = Vector2.ZERO
+@export var label_anchor_center_over_target: bool = true
 @export var label_z_index: int = 20
+@export var label_unselected_z_index: int = 9
+@export var label_selected_z_index: int = 12
 @export var label_background_color: Color = Color(1.0, 1.0, 1.0, 0.68)
 @export var label_selected_background: Color = Color(1.0, 1.0, 1.0, 0.84)
+@export var label_selected_alpha: float = 0.95
 @export var label_border_color: Color = Color(0.05, 0.08, 0.12, 0.14)
-@export var label_selected_border_color: Color = Color(0.12, 0.34, 0.62, 0.46)
-@export var label_selected_edge_width: int = 2
+@export var label_selected_border_color: Color = Color(0.0, 0.9, 1.0, 0.95)
+@export var label_selected_edge_width: int = 3
 @export var label_text_color: Color = Color(0.09, 0.11, 0.14, 0.96)
 @export var label_muted_text_color: Color = Color(0.09, 0.11, 0.14, 0.72)
 @export var ach_gauge_color: Color = Color("#4c8bf5")
 @export var gauge_track_color: Color = Color(0.05, 0.08, 0.12, 0.12)
+@export var label_title_font_scale: float = 1.43
 @export var label_selected_font_scale: float = 1.1
 @export var alert_overlay_color: Color = Color(1.0, 0.25, 0.25, 0.35)
 @export var alert_overlay_z_index: int = 25
@@ -38,6 +46,7 @@ var title_font_size_default: int = -1
 var alert_indicator_active: bool = false
 var label_selection_dirty: bool = true
 var alert_overlays: Array[Polygon2D] = []
+var label_anchor_node_cache: Node2D = null
 
 var occupants: Dictionary[String, Person] = {}
 var ach_schedule: Array[Dictionary] = []
@@ -67,8 +76,10 @@ const PANEL_PADDING_X: float = 12.0
 const PANEL_PADDING_Y: float = 10.0
 const PANEL_GUTTER_X: float = 10.0
 const PANEL_TITLE_HEIGHT: float = 22.0
+const PANEL_TITLE_BOTTOM_GAP: float = 6.0
 const PANEL_SCHEDULE_HEIGHT: float = 18.0
 const PANEL_GAUGE_ROW_HEIGHT: float = 20.0
+const PANEL_SECTION_GAP: float = 8.0
 const PANEL_GAUGE_LABEL_WIDTH: float = 42.0
 const PANEL_GAUGE_LABEL_GAP: float = 16.0
 const PANEL_GAUGE_HEIGHT: float = 10.0
@@ -87,7 +98,7 @@ func _ready() -> void:
 
 	ach_current = ach_default
 	label_background.top_level = true
-	label_background.z_index = label_z_index
+	label_background.z_index = _current_label_z_index()
 	label_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label_background.size = label_size
 	title_font_size_default = title_label.get_theme_font_size("font_size")
@@ -103,8 +114,10 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_update_label_transform()
-	if label_background != null and label_background.z_index != label_z_index:
-		label_background.z_index = label_z_index
+	if label_background != null:
+		var target_z := _current_label_z_index()
+		if label_background.z_index != target_z:
+			label_background.z_index = target_z
 
 func _create_alert_overlays() -> void:
 	for overlay in alert_overlays:
@@ -205,8 +218,13 @@ func set_selected(selected: bool):
 	if is_selected == selected:
 		return
 	is_selected = selected
+	if label_background != null:
+		label_background.z_index = _current_label_z_index()
 	label_selection_dirty = true
 	_refresh_label()
+
+func _current_label_z_index() -> int:
+	return label_selected_z_index if is_selected else label_unselected_z_index
 
 func set_alert_indicator(active: bool):
 	if alert_indicator_active == active:
@@ -319,9 +337,39 @@ func _update_label_transform() -> void:
 	if label_background == null:
 		return
 
-	label_background.global_position = global_position + label_offset
+	label_background.global_position = _resolved_label_position()
 	label_background.size = label_size
 	_update_panel_layout()
+
+func _resolved_label_position() -> Vector2:
+	var fallback := global_position + label_offset
+	var anchor_node := _resolve_label_anchor_node()
+	if anchor_node == null:
+		return fallback
+
+	var anchor_position := anchor_node.global_position + label_anchor_offset
+	if label_anchor_center_over_target:
+		return anchor_position - label_size * 0.5
+	return anchor_position
+
+func _resolve_label_anchor_node() -> Node2D:
+	if is_instance_valid(label_anchor_node_cache):
+		return label_anchor_node_cache
+
+	var candidate: Node = null
+	if not label_anchor_target_path.is_empty():
+		candidate = get_node_or_null(label_anchor_target_path)
+
+	if candidate == null and label_anchor_target_name != "":
+		var root := get_tree().current_scene
+		if root != null:
+			candidate = root.find_child(label_anchor_target_name, true, false)
+
+	if candidate is Node2D:
+		label_anchor_node_cache = candidate as Node2D
+		return label_anchor_node_cache
+
+	return null
 
 func _apply_label_selection_style() -> void:
 	if label_background == null:
@@ -339,22 +387,25 @@ func _apply_label_selection_style() -> void:
 	style.border_width_top = border_width
 	style.border_width_right = border_width
 	style.border_width_bottom = border_width
-	style.bg_color = label_selected_background if is_selected else label_background_color
+	if is_selected:
+		var selected_bg := label_selected_background
+		selected_bg.a = clampf(label_selected_alpha, 0.0, 1.0)
+		style.bg_color = selected_bg
+	else:
+		style.bg_color = label_background_color
 	style.border_color = label_selected_border_color if is_selected else label_border_color
 	style.shadow_color = Color(0.0, 0.0, 0.0, 0.22) if is_selected else Color(0.0, 0.0, 0.0, 0.08)
 	style.shadow_size = 3 if is_selected else 1
 	label_background.add_theme_stylebox_override("panel", style)
 
+	var target_title_size := _target_title_font_size()
+	if target_title_size > 0:
+		title_label.add_theme_font_size_override("font_size", target_title_size)
+
 	if is_selected:
-		if title_font_size_default <= 0:
-			title_font_size_default = title_label.get_theme_font_size("font_size")
-		if title_font_size_default > 0 and label_selected_font_scale > 0.0:
-			var scaled_size := int(round(title_font_size_default * label_selected_font_scale))
-			title_label.add_theme_font_size_override("font_size", scaled_size)
 		title_label.add_theme_constant_override("outline_size", 2)
 		title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.15))
 	else:
-		title_label.remove_theme_font_size_override("font_size")
 		title_label.remove_theme_constant_override("outline_size")
 		title_label.remove_theme_color_override("font_outline_color")
 
@@ -371,12 +422,13 @@ func _update_panel_layout() -> void:
 	var right_width := maxf(inner_width - PANEL_GUTTER_X - left_width, 92.0)
 	var right_x := PANEL_PADDING_X + left_width + PANEL_GUTTER_X
 	var title_y := PANEL_PADDING_Y
-	var schedule_y := title_y + PANEL_TITLE_HEIGHT + 2.0
-	var vl_row_y := schedule_y + PANEL_SCHEDULE_HEIGHT + 7.0
-	var ach_row_y := vl_row_y + PANEL_GAUGE_ROW_HEIGHT + 7.0
+	var title_height := maxf(PANEL_TITLE_HEIGHT, float(_target_title_font_size()) + 6.0)
+	var schedule_y := title_y + title_height + PANEL_TITLE_BOTTOM_GAP
+	var vl_row_y := schedule_y + PANEL_SCHEDULE_HEIGHT + PANEL_SECTION_GAP
+	var ach_row_y := vl_row_y + PANEL_GAUGE_ROW_HEIGHT + PANEL_SECTION_GAP
 
 	title_label.position = Vector2(PANEL_PADDING_X, title_y)
-	title_label.size = Vector2(inner_width, PANEL_TITLE_HEIGHT)
+	title_label.size = Vector2(inner_width, title_height)
 	schedule_label.position = Vector2(PANEL_PADDING_X, schedule_y)
 	schedule_label.size = Vector2(inner_width, PANEL_SCHEDULE_HEIGHT)
 
@@ -398,6 +450,13 @@ func _update_panel_layout() -> void:
 	vl_gauge_fill.size.y = vl_gauge_track.size.y
 	ach_gauge_fill.position = Vector2.ZERO
 	ach_gauge_fill.size.y = ach_gauge_track.size.y
+
+func _target_title_font_size() -> int:
+	if title_font_size_default <= 0 and title_label != null:
+		title_font_size_default = title_label.get_theme_font_size("font_size")
+	if title_font_size_default <= 0:
+		return 0
+	return int(round(float(title_font_size_default) * maxf(label_title_font_scale, 1.0)))
 
 func _apply_gauge_fill(track: ColorRect, fill: ColorRect, ratio: float, fill_color: Color) -> void:
 	if track == null or fill == null:

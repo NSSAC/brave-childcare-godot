@@ -64,14 +64,15 @@ position = Vector2(-236, -750)
 scale = Vector2(6.35, 2.7)
 label_offset = Vector2(-200, -80)
 label_size = Vector2(250, 148)
-label_selected_edge_width = 3
+label_anchor_target_name = "Carpet_Preschool1"
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="OlderToddlerRoom" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
 position = Vector2(175, -190)
 scale = Vector2(3.32, 2.65)
 label_offset = Vector2(-50, -70)
-label_size = Vector2(250, 124)
+label_size = Vector2(250, 148)
+label_anchor_target_name = "Carpets_OlderToddler"
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="YoungerToddlerRoom" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
@@ -79,6 +80,7 @@ position = Vector2(-955, -195)
 scale = Vector2(3.15, 2.65)
 label_offset = Vector2(-120, -20)
 label_size = Vector2(250, 148)
+label_anchor_target_name = "Carpet_YoungerToddler2"
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="InfantRoom" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
@@ -86,12 +88,14 @@ position = Vector2(-115, 615)
 scale = Vector2(3.25, 2.55)
 label_offset = Vector2(-176, -100)
 label_size = Vector2(250, 148)
+label_anchor_target_name = "Carpets_Infant"
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="CommonRoom" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
 position = Vector2(-955, 785)
 scale = Vector2(3.1, 4.3)
 label_size = Vector2(250, 148)
+label_anchor_target_name = "Carpet_CommonRoom"
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="Kitchen_Office" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
@@ -99,12 +103,15 @@ position = Vector2(610, 785)
 scale = Vector2(2.2, 4.3)
 label_offset = Vector2(-120, 150)
 label_size = Vector2(250, 148)
+label_anchor_target_name = "Carpets"
+label_anchor_offset = Vector2(0, 24)
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="Hallway" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
 position = Vector2(-377, 219)
 scale = Vector2(7.6, 1.2)
 label_size = Vector2(250, 148)
+label_anchor_target_name = "Carpet_Hallway2"
 alert_overlay_color = Color(1, 0.25098, 0.25098, 0.196078)
 
 [node name="Entrance" parent="RoomsContainer" instance=ExtResource("10_r2j6m")]
@@ -320,7 +327,7 @@ scale = Vector2(0.75, 0.75)
 type = "play_toys"
 
 [node name="PlayToys11" parent="PlayToys" instance=ExtResource("11_eotby")]
-position = Vector2(-1180, -363)
+position = Vector2(-1305, -193)
 scale = Vector2(0.75, 0.75)
 type = "play_toys"
 
@@ -524,11 +531,11 @@ scale = Vector2(1.9, 1.9)
 carpet_texture = ExtResource("17_carpet_g")
 
 [node name="Carpet_YoungerToddler1" parent="CarpetsContainer" instance=ExtResource("14_evxjy")]
-position = Vector2(-1218, -348)
+position = Vector2(-1217, -349)
 
 [node name="Carpet_YoungerToddler2" parent="CarpetsContainer" instance=ExtResource("14_evxjy")]
-position = Vector2(-760, -122)
-scale = Vector2(1.4, 1.4)
+position = Vector2(-778, -124)
+scale = Vector2(1.7, 1.7)
 carpet_texture = ExtResource("17_carpet_g")
 
 [node name="Carpet_CommonRoom" parent="CarpetsContainer" instance=ExtResource("14_evxjy")]
