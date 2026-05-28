@@ -7,10 +7,10 @@ const UP_CONFETTI_GAP_RATIO: float = 0.15
 const UP_CONFETTI_GAP_MIN_PX: float = 4.0
 const UP_CONFETTI_GAP_MAX_PX: float = 10.0
 const AWARD_ART_BY_MEDAL := {
-	"Bioareosol Buster": "res://Art/halo-yellow.png",
-	"Clean Air Conveyor": "res://Art/halo-blue.png",
-	"Bronze Care Builder": "res://Art/halo-pink.png",
-	"Playroom Pal": "res://Art/halo-clear.png",
+	"Bioareosol Buster": "res://Art/award_BioaerosolBuster.png",
+	"HVAC Hero": "res://Art/award_HVAC_hero.png",
+	"Aerosol Avenger": "res://Art/award_Aerosol_Avenger.png",
+	"Clean Air Crafter": "res://Art/award_cleanair_crafter.png",
 }
 
 @onready var subtitle_label: Label = %GameOverSubtitleLabel
@@ -19,8 +19,10 @@ const AWARD_ART_BY_MEDAL := {
 @onready var award_art: TextureRect = %GameOverAwardArt
 @onready var exposure_status_label: Label = %GameOverExposureStatusLabel
 @onready var cost_status_label: Label = %GameOverCostStatusLabel
+@onready var alert_status_label: Label = %GameOverAlertStatusLabel
 @onready var exposure_chart: Control = %GameOverExposureChart
 @onready var cost_chart: Control = %GameOverCostChart
+@onready var alert_chart: Control = %GameOverAlertChart
 @onready var continue_button: Button = %GameOverContinueButton
 @onready var return_progress: ProgressBar = %GameOverReturnProgress
 @onready var stay_button: Button = %GameOverStayButton
@@ -30,6 +32,8 @@ const AWARD_ART_BY_MEDAL := {
 
 var _auto_return_elapsed_s: float = 0.0
 var _auto_return_enabled: bool = false
+
+### Confetti effects inspired by: https://gist.github.com/benmccown/52eb2d9b0a2899fe4d6d6aea6514eafb
 
 func _ready() -> void:
 	if continue_button != null:
@@ -60,16 +64,23 @@ func show_results(data: Dictionary) -> void:
 	var exposure_series: Array[Dictionary] = data.get("exposure_series", [])
 	var exposure_status: String = str(data.get("exposure_status", ""))
 	if exposure_chart != null and exposure_chart.has_method("set_series"):
-		exposure_chart.call("set_series", exposure_series, exposure_status)
+		exposure_chart.call("set_series", exposure_series, "")
 	if exposure_status_label != null:
 		exposure_status_label.text = exposure_status
 
 	var cost_series: Array[Dictionary] = data.get("cost_series", [])
 	var cost_status: String = str(data.get("cost_status", ""))
 	if cost_chart != null and cost_chart.has_method("set_series"):
-		cost_chart.call("set_series", cost_series, cost_status)
+		cost_chart.call("set_series", cost_series, "")
 	if cost_status_label != null:
 		cost_status_label.text = cost_status
+
+	var alert_series: Array[Dictionary] = data.get("alert_series", [])
+	var alert_status: String = str(data.get("alert_status", ""))
+	if alert_chart != null and alert_chart.has_method("set_series"):
+		alert_chart.call("set_series", alert_series, "")
+	if alert_status_label != null:
+		alert_status_label.text = alert_status
 	if stay_button != null:
 		stay_button.disabled = false
 		stay_button.text = "Stay"

@@ -10,18 +10,16 @@ extends Control
 		min_value = value_new
 		if max_value < min_value:
 			max_value = min_value
-		value = clampf(value, min_value, max_value)
 		queue_redraw()
 
 @export var max_value: float = 10.0:
 	set(value_new):
 		max_value = maxf(value_new, min_value)
-		value = clampf(value, min_value, max_value)
 		queue_redraw()
 
 @export var value: float = 0.0:
 	set(value_new):
-		value = clampf(value_new, min_value, max_value)
+		value = value_new
 		queue_redraw()
 
 @export var label_text: String = "":
@@ -62,7 +60,6 @@ extends Control
 func set_range(new_min: float, new_max: float) -> void:
 	min_value = new_min
 	max_value = new_max
-	value = clampf(value, min_value, max_value)
 	queue_redraw()
 
 func set_current_value(new_value: float) -> void:
@@ -90,7 +87,7 @@ func _display_value() -> float:
 	if not snap_display_to_step:
 		return value
 	var snapped: float = round((value - min_value) / snap_step) * snap_step + min_value
-	return clampf(snapped, min_value, max_value)
+	return snapped
 
 func _draw_knob() -> void:
 	var size_v := size

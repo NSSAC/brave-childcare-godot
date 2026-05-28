@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3bd4eaftl3pb"
-path="res://.godot/imported/BRAVE_biosensor.png-cab67cff438f844f9fddd0a6d6bc2260.ctex"
+uid="uid://bixacfda8cl5r"
+path="res://.godot/imported/award_Aerosol_Avenger.png-50268fa7a33edee5ffc5aadec26b969b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Art/BRAVE_biosensor.png"
-dest_files=["res://.godot/imported/BRAVE_biosensor.png-cab67cff438f844f9fddd0a6d6bc2260.ctex"]
+source_file="res://Art/award_Aerosol_Avenger.png"
+dest_files=["res://.godot/imported/award_Aerosol_Avenger.png-50268fa7a33edee5ffc5aadec26b969b.ctex"]
 
 [params]
 

@@ -207,35 +207,35 @@ autowrap_mode = 3
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="ExposurePanel" type="PanelContainer" parent="Center/Card/Margin/VBox/ChartsRow"]
+[node name="AlertPanel" type="PanelContainer" parent="Center/Card/Margin/VBox/ChartsRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ExposureMargin" type="MarginContainer" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel"]
+[node name="AlertMargin" type="MarginContainer" parent="Center/Card/Margin/VBox/ChartsRow/AlertPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="ExposureVBox" type="VBoxContainer" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin"]
+[node name="AlertVBox" type="VBoxContainer" parent="Center/Card/Margin/VBox/ChartsRow/AlertPanel/AlertMargin"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ExposureTitle" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+[node name="AlertTitle" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/AlertPanel/AlertMargin/AlertVBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 29
-text = "Exposure"
+text = "Alerts"
 
-[node name="GameOverExposureStatusLabel" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+[node name="GameOverAlertStatusLabel" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/AlertPanel/AlertMargin/AlertVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "Loading exposure history..."
+text = "Loading alert history..."
 
-[node name="GameOverExposureChart" type="Control" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+[node name="GameOverAlertChart" type="Control" parent="Center/Card/Margin/VBox/ChartsRow/AlertPanel/AlertMargin/AlertVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 338)
+custom_minimum_size = Vector2(0, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("2_5l4jn")
@@ -268,7 +268,40 @@ text = "Loading cost history..."
 
 [node name="GameOverCostChart" type="Control" parent="Center/Card/Margin/VBox/ChartsRow/CostPanel/CostMargin/CostVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 338)
+custom_minimum_size = Vector2(0, 500)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_5l4jn")
+
+[node name="ExposurePanel" type="PanelContainer" parent="Center/Card/Margin/VBox/ChartsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ExposureMargin" type="MarginContainer" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="ExposureVBox" type="VBoxContainer" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExposureTitle" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 29
+text = "Exposure"
+
+[node name="GameOverExposureStatusLabel" type="Label" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Loading exposure history..."
+
+[node name="GameOverExposureChart" type="Control" parent="Center/Card/Margin/VBox/ChartsRow/ExposurePanel/ExposureMargin/ExposureVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("2_5l4jn")

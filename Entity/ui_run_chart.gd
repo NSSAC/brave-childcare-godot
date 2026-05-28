@@ -8,8 +8,10 @@ extends Control
 @export var min_plot_height: float = 120.0
 @export var reveal_duration_s: float = 6.0
 @export var animate_on_set_series: bool = true
+@export var show_x_axis_labels: bool = true
 @export var chart_start_time_s: float = 7.0 * 3600.0
-@export var chart_end_time_s: float = 17.5 * 3600.0
+@export var chart_end_time_s: float = 18 * 3600.0
+const LEGEND_LABEL_MAX_WIDTH: float = 220.0
 
 var _series: Array[Dictionary] = []
 var _status_text: String = ""
@@ -18,6 +20,19 @@ var _reveal_t: float = 1.0:
 		_reveal_t = value
 		queue_redraw()
 var _reveal_tween: Tween
+
+func _draw_series_line(series: Dictionary, min_t: float, max_t: float, min_y: float, max_y: float, plot_rect: Rect2) -> void:
+	var pts_variant: Variant = series.get("points", [])
+	if not (pts_variant is Array):
+		return
+	var points: Array = pts_variant
+	if points.size() < 2:
+		return
+
+	var color: Color = _to_color(series.get("color", Color("#7cc3ff")))
+	var line_points: PackedVector2Array = _build_revealed_polyline(points, min_t, max_t, min_y, max_y, plot_rect)
+	if line_points.size() >= 2:
+		draw_polyline(line_points, color, line_width, true)
 
 func set_series(series: Array[Dictionary], status_text: String = "") -> void:
 	_series = series
@@ -70,17 +85,18 @@ func _draw() -> void:
 	_draw_y_grid(plot_rect, min_y, max_y)
 
 	for series in _series:
-		var pts_variant: Variant = series.get("points", [])
-		if not (pts_variant is Array):
+		var label_text: String = str(series.get("label", ""))
+		var is_latest: bool = bool(series.get("is_latest", false)) or label_text.begins_with("Latest:")
+		if is_latest:
 			continue
-		var points: Array = pts_variant
-		if points.size() < 2:
-			continue
+		_draw_series_line(series, min_t, max_t, min_y, max_y, plot_rect)
 
-		var color: Color = _to_color(series.get("color", Color("#7cc3ff")))
-		var line_points: PackedVector2Array = _build_revealed_polyline(points, min_t, max_t, min_y, max_y, plot_rect)
-		if line_points.size() >= 2:
-			draw_polyline(line_points, color, line_width, true)
+	for series in _series:
+		var label_text: String = str(series.get("label", ""))
+		var is_latest: bool = bool(series.get("is_latest", false)) or label_text.begins_with("Latest:")
+		if not is_latest:
+			continue
+		_draw_series_line(series, min_t, max_t, min_y, max_y, plot_rect)
 
 	_draw_axes(plot_rect)
 	_draw_legend(plot_rect)
@@ -149,28 +165,30 @@ func _draw_hour_grid(plot_rect: Rect2, min_t: float, max_t: float) -> void:
 		var t := float(h) * 3600.0
 		var x := _remap(t, min_t, max_t, plot_rect.position.x, plot_rect.end.x)
 		draw_line(Vector2(x, plot_rect.position.y), Vector2(x, plot_rect.end.y), grid_color, 1.0)
-		draw_string(
-			ThemeDB.fallback_font,
-			Vector2(x - 14.0, plot_rect.end.y + 16.0),
-			"%02d:00" % posmod(h, 24),
-			HORIZONTAL_ALIGNMENT_LEFT,
-			80.0,
-			12,
-			label_color
-		)
+		if show_x_axis_labels:
+			draw_string(
+				ThemeDB.fallback_font,
+				Vector2(x - 14.0, plot_rect.end.y + 16.0),
+				"%02d:00" % posmod(h, 24),
+				HORIZONTAL_ALIGNMENT_LEFT,
+				80.0,
+				12,
+				label_color
+			)
 
 	if not is_equal_approx(fmod(max_t, 3600.0), 0.0):
 		var final_x: float = _remap(max_t, min_t, max_t, plot_rect.position.x, plot_rect.end.x)
 		draw_line(Vector2(final_x, plot_rect.position.y), Vector2(final_x, plot_rect.end.y), grid_color, 1.0)
-		draw_string(
-			ThemeDB.fallback_font,
-			Vector2(final_x - 18.0, plot_rect.end.y + 16.0),
-			_seconds_to_clock_label(max_t),
-			HORIZONTAL_ALIGNMENT_LEFT,
-			80.0,
-			12,
-			label_color
-		)
+		if show_x_axis_labels:
+			draw_string(
+				ThemeDB.fallback_font,
+				Vector2(final_x - 18.0, plot_rect.end.y + 16.0),
+				_seconds_to_clock_label(max_t),
+				HORIZONTAL_ALIGNMENT_LEFT,
+				80.0,
+				12,
+				label_color
+			)
 
 func _draw_y_grid(plot_rect: Rect2, min_y: float, max_y: float) -> void:
 	var axis: Dictionary = _nice_axis_bounds(min_y, max_y, 5)
@@ -203,8 +221,8 @@ func _draw_legend(plot_rect: Rect2) -> void:
 		var label: String = str(series.get("label", "run"))
 		var color: Color = _to_color(series.get("color", Color("#7cc3ff")))
 		draw_line(Vector2(x, y), Vector2(x + 16.0, y), color, max(2.0, line_width + 0.6))
-		draw_string(ThemeDB.fallback_font, Vector2(x + 22.0, y + 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, 140.0, 12, label_color)
-		x += 152.0
+		draw_string(ThemeDB.fallback_font, Vector2(x + 22.0, y + 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, LEGEND_LABEL_MAX_WIDTH, 12, label_color)
+		y += 18.0
 
 func _build_revealed_polyline(points: Array, min_t: float, max_t: float, min_y: float, max_y: float, plot_rect: Rect2) -> PackedVector2Array:
 	var revealed_points := PackedVector2Array()
@@ -220,12 +238,24 @@ func _build_revealed_polyline(points: Array, min_t: float, max_t: float, min_y: 
 		var point: Dictionary = raw_point
 		var raw_t: float = float(point.get("time", 0.0))
 		var y: float = float(point.get("value", 0.0))
-		var t: float = clampf(raw_t, min_t, max_t)
 
 		if has_prev_raw and raw_t < min_t and prev_time < min_t:
 			prev_time = raw_t
 			prev_value = y
 			continue
+
+		# Stop at chart_end_time_s: interpolate to the boundary and break.
+		if raw_t > max_t:
+			if prev_added and is_finite(prev_time) and raw_t > prev_time:
+				var ratio: float = clampf((max_t - prev_time) / (raw_t - prev_time), 0.0, 1.0)
+				var y_at_end: float = lerpf(prev_value, y, ratio)
+				revealed_points.push_back(Vector2(
+					plot_rect.end.x,
+					_remap(y_at_end, min_y, max_y, plot_rect.end.y, plot_rect.position.y)
+				))
+			break
+
+		var t: float = clampf(raw_t, min_t, max_t)
 
 		if t <= reveal_time:
 			revealed_points.push_back(Vector2(

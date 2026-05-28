@@ -58,7 +58,7 @@ var brave_mode_enabled: bool = false
 var health_alert_active: bool = false
 var health_manual_override: bool = false
 var ach_min: float = 0.0
-var ach_max: float = 7.0
+var ach_max: float = 9.0
 var ach_health_baseline: float = 3.0
 var schedule_description: String = ""
 

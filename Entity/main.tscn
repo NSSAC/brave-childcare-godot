@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://cn716rk61mj6n"]
+[gd_scene load_steps=22 format=3 uid="uid://cn716rk61mj6n"]
 
 [ext_resource type="Script" uid="uid://ti3hkbtijubp" path="res://Entity/main.gd" id="1_7eq1f"]
 [ext_resource type="PackedScene" uid="uid://b48yck4fdkxok" path="res://Map/map_level_1.tscn" id="2_lhxn6"]
@@ -8,6 +8,8 @@
 [ext_resource type="Script" uid="uid://do4lkytmuc08o" path="res://Entity/ui_dot_counter.gd" id="9_3rf3c"]
 [ext_resource type="Script" uid="uid://chmjpa2ijgwwq" path="res://Entity/ui_run_chart.gd" id="10_q41kk"]
 [ext_resource type="PackedScene" path="res://Entity/game_over.tscn" id="11_px9g2"]
+[ext_resource type="Texture2D" path="res://Art/Logitech_JoyPad_withCallouts.png" id="12_fm4lw"]
+[ext_resource type="Texture2D" path="res://Art/Keyboard_Controls_withCallouts.png" id="13_jm2lp"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause_overlay"]
 bg_color = Color(0.03, 0.08, 0.15, 0.88)
@@ -99,6 +101,7 @@ corner_radius_bottom_left = 10
 
 [sub_resource type="LabelSettings" id="LabelSettings_7eq1f"]
 font_size = 150
+font_color = Color(0.529, 0.808, 0.922, 1)
 shadow_size = 5
 shadow_color = Color(0, 0, 0, 0.772549)
 
@@ -135,6 +138,46 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.14, 0.31, 0.16, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_level_hover"]
+bg_color = Color(0.27, 0.32, 0.39, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.42, 0.53, 0.67, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_level_pressed"]
+bg_color = Color(0.17, 0.21, 0.27, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.31, 0.4, 0.52, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_level_normal"]
+bg_color = Color(0.22, 0.27, 0.34, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.35, 0.45, 0.58, 1)
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
@@ -188,6 +231,107 @@ theme_override_font_sizes/font_size = 96
 text = "Paused"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="GameControlsOverlay" type="CenterContainer" parent="Map/CanvasLayer"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+z_index = 200
+
+[node name="Sizing" type="CenterContainer" parent="Map/CanvasLayer/GameControlsOverlay"]
+layout_mode = 2
+
+[node name="SizeRect" type="Control" parent="Map/CanvasLayer/GameControlsOverlay/Sizing"]
+custom_minimum_size = Vector2(1440, 810)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="Panel" type="PanelContainer" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="GameControlsTitle" type="Label" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 54
+text = "Game Controls"
+horizontal_alignment = 1
+
+[node name="GameControlsHint" type="Label" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.91, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Close with: ?  Esc  Space"
+horizontal_alignment = 1
+
+[node name="GameControlsRow" type="VBoxContainer" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="JoypadVBox" type="VBoxContainer" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox/GameControlsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="JoypadLabel" type="Label" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox/GameControlsRow/JoypadVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Logitech Controls"
+horizontal_alignment = 1
+
+[node name="GameControlsJoypadImage" type="TextureRect" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox/GameControlsRow/JoypadVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+texture = ExtResource("12_fm4lw")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="KeyboardVBox" type="VBoxContainer" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox/GameControlsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="KeyboardLabel" type="Label" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox/GameControlsRow/KeyboardVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Keyboard Controls"
+horizontal_alignment = 1
+
+[node name="GameControlsKeyboardImage" type="TextureRect" parent="Map/CanvasLayer/GameControlsOverlay/Sizing/SizeRect/Panel/Margin/VBox/GameControlsRow/KeyboardVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+texture = ExtResource("13_jm2lp")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="RoomPanel" type="PanelContainer" parent="Map/CanvasLayer"]
 unique_name_in_owner = true
@@ -375,7 +519,7 @@ vertical_alignment = 1
 [node name="AchControlLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
-text = "Fan Speed Control"
+text = "Smart Building Fan Control Mode for Current Room"
 
 [node name="AchControlSection" type="PanelContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
@@ -409,7 +553,7 @@ size_flags_horizontal = 3
 [node name="AchGaugeLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.67, 0.73, 0.8, 1)
-text = "Fan Control - ACH level"
+text = "Fan Speed (ACH - air changes per hour)"
 
 [node name="PanelAchGauge" type="Control" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/DialRow/AchDialVBox"]
 unique_name_in_owner = true
@@ -417,7 +561,7 @@ custom_minimum_size = Vector2(0, 170)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("7_x4r0u")
-max_value = 8.0
+max_value = 9.0
 label_text = "ACH"
 value_decimals = 0
 accent_color = Color(0.423529, 0.733333, 1, 1)
@@ -679,6 +823,18 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Health: OFF"
 
+[node name="PanelBraveToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "BRAVE: OFF"
+
+[node name="PanelAutoplayToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Start Auto-play"
+
 [node name="SpeedControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -700,6 +856,15 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Pause"
+
+[node name="HelpControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+
+[node name="PanelGameControlsButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/HelpControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Game Controls (?)"
 
 [node name="PanelEndSimRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
@@ -772,6 +937,21 @@ v 3.0"
 label_settings = SubResource("LabelSettings_7eq1f")
 horizontal_alignment = 1
 
+[node name="VersionLabel" type="Label" parent="TitleScreen"]
+unique_name_in_owner = true
+anchors_preset = 10
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -240.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = 58.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(0.22, 0.22, 0.24, 1)
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 2
+vertical_alignment = 1
+
 [node name="VBoxContainer" type="VBoxContainer" parent="TitleScreen"]
 anchors_preset = 13
 anchor_left = 0.5
@@ -815,9 +995,14 @@ theme_override_font_sizes/font_size = 24
 text = "No name entered. Assigned:"
 horizontal_alignment = 1
 
-[node name="StartSimulationDefaultButton" type="Button" parent="TitleScreen/VBoxContainer"]
+[node name="PrimaryStartRow" type="HBoxContainer" parent="TitleScreen/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="StartSimulationDefaultButton" type="Button" parent="TitleScreen/VBoxContainer/PrimaryStartRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 0)
+custom_minimum_size = Vector2(500, 110)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
@@ -828,6 +1013,64 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_start_sim_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_start_sim_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_start_sim_normal")
 text = "Start Simulation"
+
+[node name="LevelButton" type="Button" parent="TitleScreen/VBoxContainer/PrimaryStartRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 110)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_level_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_level_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_level_pressed")
+text = ""
+
+[node name="VBox" type="VBoxContainer" parent="TitleScreen/VBoxContainer/PrimaryStartRow/LevelButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+size_flags_vertical = 3
+alignment = 1
+theme_override_constants/separation = 2
+
+[node name="LevelLabel1" type="Label" parent="TitleScreen/VBoxContainer/PrimaryStartRow/LevelButton/VBox"]
+layout_mode = 2
+mouse_filter = 2
+size_flags_vertical = 1
+text = "Level:"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="LevelLabel2" type="Label" parent="TitleScreen/VBoxContainer/PrimaryStartRow/LevelButton/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+size_flags_vertical = 2
+text = "Standard"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 48
+
+[node name="StartAutoplayButton" type="Button" parent="TitleScreen/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 44
+theme_override_styles/hover = SubResource("StyleBoxFlat_start_sim_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_start_sim_pressed")
+theme_override_styles/normal = SubResource("StyleBoxFlat_start_sim_normal")
+text = "Start with Autoplay on"
 
 [node name="PrimarySummaryGap" type="Control" parent="TitleScreen/VBoxContainer"]
 custom_minimum_size = Vector2(0, 200)
@@ -856,37 +1099,37 @@ autowrap_mode = 3
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="ExposureHistoryPanel" type="PanelContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow"]
+[node name="AlertHistoryPanel" type="PanelContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ExposureHistoryMargin" type="MarginContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel"]
+[node name="AlertHistoryMargin" type="MarginContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow/AlertHistoryPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 8
 
-[node name="ExposureHistoryVBox" type="VBoxContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin"]
+[node name="AlertHistoryVBox" type="VBoxContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow/AlertHistoryPanel/AlertHistoryMargin"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ExposureHistoryTitle" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin/ExposureHistoryVBox"]
+[node name="AlertHistoryTitle" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/AlertHistoryPanel/AlertHistoryMargin/AlertHistoryVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.83, 0.89, 0.95, 1)
 theme_override_font_sizes/font_size = 22
-text = "Exposure History: Latest vs Curated Runs"
+text = "Alert History: Cumulative Alerts during the Day"
 
-[node name="TitleExposureChartStatus" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin/ExposureHistoryVBox"]
+[node name="TitleAlertChartStatus" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/AlertHistoryPanel/AlertHistoryMargin/AlertHistoryVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.73, 0.82, 0.9, 1)
 theme_override_font_sizes/font_size = 14
-text = "Loading exposure history..."
+text = "Loading alert history..."
 
-[node name="TitleExposureChart" type="Control" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin/ExposureHistoryVBox"]
+[node name="TitleAlertChart" type="Control" parent="TitleScreen/VBoxContainer/HistoryChartsRow/AlertHistoryPanel/AlertHistoryMargin/AlertHistoryVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("10_q41kk")
@@ -910,7 +1153,7 @@ theme_override_constants/separation = 4
 layout_mode = 2
 theme_override_colors/font_color = Color(0.83, 0.89, 0.95, 1)
 theme_override_font_sizes/font_size = 22
-text = "Cost History: Latest vs Curated Runs"
+text = "Cost History: Total Cost Accrued during the Day"
 
 [node name="TitleCostChartStatus" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/CostHistoryPanel/CostHistoryMargin/CostHistoryVBox"]
 unique_name_in_owner = true
@@ -921,7 +1164,42 @@ text = "Loading cost history..."
 
 [node name="TitleCostChart" type="Control" parent="TitleScreen/VBoxContainer/HistoryChartsRow/CostHistoryPanel/CostHistoryMargin/CostHistoryVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("10_q41kk")
+
+[node name="ExposureHistoryPanel" type="PanelContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ExposureHistoryMargin" type="MarginContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ExposureHistoryVBox" type="VBoxContainer" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ExposureHistoryTitle" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin/ExposureHistoryVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.89, 0.95, 1)
+theme_override_font_sizes/font_size = 22
+text = "Exposure History: Total Exposure during the Day"
+
+[node name="TitleExposureChartStatus" type="Label" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin/ExposureHistoryVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.82, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "Loading exposure history..."
+
+[node name="TitleExposureChart" type="Control" parent="TitleScreen/VBoxContainer/HistoryChartsRow/ExposureHistoryPanel/ExposureHistoryMargin/ExposureHistoryVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("10_q41kk")
@@ -957,12 +1235,13 @@ visible = false
 
 [node name="TutorialDimmer" type="ColorRect" parent="TutorialOverlay"]
 unique_name_in_owner = true
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.6)
+color = Color(0, 0, 0, 0)
 
 [node name="TutorialHighlightFrame" type="Panel" parent="TutorialOverlay"]
 unique_name_in_owner = true
@@ -973,19 +1252,20 @@ mouse_filter = 2
 
 [node name="TutorialCard" type="PanelContainer" parent="TutorialOverlay"]
 unique_name_in_owner = true
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -780.0
-offset_top = -285.0
-offset_right = 780.0
-offset_bottom = 285.0
+anchors_preset = 12
+anchor_left = 0.08
+anchor_top = 1.0
+anchor_right = 0.92
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -360.0
+offset_right = 0.0
+offset_bottom = -24.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 
 [node name="TutorialCardMargin" type="MarginContainer" parent="TutorialOverlay/TutorialCard"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/margin_left = 18
 theme_override_constants/margin_top = 16
