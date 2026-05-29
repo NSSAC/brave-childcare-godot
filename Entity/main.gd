@@ -1201,36 +1201,118 @@ func _room_card_style(selected: bool, alerting: bool) -> StyleBoxFlat:
 	style.corner_radius_bottom_left = 8
 	return style
 
+func _room_card_alert_style(alerting: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#ff4d4f") if alerting else Color(0.0, 0.0, 0.0, 0.0)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color("#ff8a8b") if alerting else Color("#5f7387")
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_right = 12
+	style.corner_radius_bottom_left = 12
+	return style
+
+func _configure_room_card_content(card: PanelContainer) -> void:
+	var _old_tween = card.get_meta("room_card_alert_tween", null)
+	if _old_tween != null and is_instance_valid(_old_tween):
+		_old_tween.kill()
+	card.set_meta("room_card_alert_tween", null)
+	for child in card.get_children():
+		child.free()
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Outer row: [alert lamp] [col1: room name] [col2: activity / metrics]
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	row.add_theme_constant_override("separation", 12)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# Alert lamp centred vertically on the left
+	var alert_holder := CenterContainer.new()
+	alert_holder.custom_minimum_size = Vector2(28.0, 0.0)
+	alert_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	alert_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var alert_indicator := Panel.new()
+	alert_indicator.custom_minimum_size = Vector2(24.0, 24.0)
+	alert_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	alert_holder.add_child(alert_indicator)
+
+	# Column 1: room name label directly in the row — full column width, vertically centred
+	var room_name_label := Label.new()
+	room_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	room_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	room_name_label.size_flags_stretch_ratio = 0.45
+	room_name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	room_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	room_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	room_name_label.add_theme_font_size_override("font_size", 28)
+
+	# Column 2: activity on top, metrics on bottom, ~55 % of remaining width
+	var col2 := VBoxContainer.new()
+	col2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col2.size_flags_stretch_ratio = 0.55
+	col2.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col2.alignment = BoxContainer.ALIGNMENT_CENTER
+	col2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col2.add_theme_constant_override("separation", 4)
+
+	var activity_label := Label.new()
+	activity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	activity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	activity_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	activity_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	activity_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	activity_label.add_theme_font_size_override("font_size", 22)
+
+	var metrics_label := Label.new()
+	metrics_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	metrics_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	metrics_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	metrics_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	metrics_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	metrics_label.add_theme_font_size_override("font_size", 25)
+
+	col2.add_child(activity_label)
+	col2.add_child(metrics_label)
+
+	row.add_child(alert_holder)
+	row.add_child(room_name_label)
+	row.add_child(col2)
+	margin.add_child(row)
+	card.add_child(margin)
+
+	card.set_meta("room_card_alert", alert_indicator)
+	card.set_meta("room_card_name_label", room_name_label)
+	card.set_meta("room_card_activity_label", activity_label)
+	card.set_meta("room_card_metrics_label", metrics_label)
+
 func _ensure_room_card_count(target_count: int) -> void:
 	if panel_room_cards == null:
 		return
 
+	for existing_card_variant in panel_room_card_nodes:
+		var existing_card: PanelContainer = existing_card_variant
+		if is_instance_valid(existing_card) and not existing_card.has_meta("room_card_alert"):
+			_configure_room_card_content(existing_card)
+
 	while panel_room_card_nodes.size() < target_count:
 		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(0.0, 96.0)
+		card.custom_minimum_size = Vector2(0.0, 94.0)
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		card.gui_input.connect(_on_room_card_gui_input.bind(card))
-
-		var margin := MarginContainer.new()
-		margin.add_theme_constant_override("margin_left", 10)
-		margin.add_theme_constant_override("margin_top", 8)
-		margin.add_theme_constant_override("margin_right", 10)
-		margin.add_theme_constant_override("margin_bottom", 8)
-		margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-		var label := RichTextLabel.new()
-		label.bbcode_enabled = true
-		label.fit_content = true
-		label.scroll_active = false
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		label.add_theme_font_size_override("normal_font_size", 21)
-		label.add_theme_font_size_override("bold_font_size", 21)
-		label.add_theme_constant_override("line_separation", 2)
-
-		margin.add_child(label)
-		card.add_child(margin)
+		_configure_room_card_content(card)
 		panel_room_cards.add_child(card)
 		panel_room_card_nodes.append(card)
 
@@ -1253,28 +1335,52 @@ func _update_room_cards(selected_room) -> void:
 		var room = room_nodes[idx]
 		var card: PanelContainer = panel_room_card_nodes[idx]
 		card.set_meta("room_card_idx", idx)
-		var margin: MarginContainer = card.get_child(0)
-		var label: RichTextLabel = margin.get_child(0)
+		var alert_indicator: Panel = card.get_meta("room_card_alert")
+		var room_name_label: Label = card.get_meta("room_card_name_label")
+		var activity_label: Label = card.get_meta("room_card_activity_label")
+		var metrics_label: Label = card.get_meta("room_card_metrics_label")
 		var is_selected := idx == selected_room_idx
 		var trend_symbol := _room_vl_trend_symbol(room.room_id, room.viral_load)
 		var is_alerting := _room_alert_state(room)
-		var vl_color := _room_vl_color(room.viral_load)
 		var mode_text := _room_ach_mode_marker(room)
 		var room_description := _room_schedule_description(room)
 		if room.has_method("set_schedule_description"):
 			room.call("set_schedule_description", room_description)
 
 		card.add_theme_stylebox_override("panel", _room_card_style(is_selected, is_alerting))
+		if alert_indicator != null:
+			alert_indicator.add_theme_stylebox_override("panel", _room_card_alert_style(is_alerting))
+			var prev_alerting: bool = card.get_meta("room_card_alert_was_alerting", not is_alerting)
+			if is_alerting != prev_alerting:
+				card.set_meta("room_card_alert_was_alerting", is_alerting)
+				var old_t = card.get_meta("room_card_alert_tween", null)
+				if old_t != null and is_instance_valid(old_t):
+					old_t.kill()
+				if is_alerting:
+					var pulse := create_tween()
+					pulse.set_loops()
+					pulse.tween_property(alert_indicator, "modulate", Color(1, 1, 1, 0.18), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+					pulse.tween_property(alert_indicator, "modulate", Color(1, 1, 1, 1.0), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+					card.set_meta("room_card_alert_tween", pulse)
+				else:
+					alert_indicator.modulate = Color(1, 1, 1, 1)
+					card.set_meta("room_card_alert_tween", null)
 
 		var title_line: String = _short_room_name(room.room_id)
 		if room.has_method("display_name"):
 			title_line = str(room.display_name())
-		if room_description != "":
-			title_line += " - " + room_description
-		var title_prefix := "[b]" + ("● " if is_selected else "○ ") + title_line + "[/b]"
-		var alert_text := "[color=#ff6b6b]ALERT[/color]" if is_alerting else "[color=#9ba7b4]Normal[/color]"
-		var details := "ACH %s %.1f  |  Load [color=#%s]%.1f %s[/color]" % [mode_text, room.ach_current, vl_color.to_html(false), room.viral_load, trend_symbol]
-		label.text = "%s\n%s  |  %s" % [title_prefix, details, alert_text]
+		var activity_text: String = room_description if room_description != "" else "No scheduled activity"
+		var details := "Load: %.0f %s | %s ACH %.1f" % [room.viral_load, trend_symbol, mode_text, room.ach_current]
+
+		if room_name_label != null:
+			room_name_label.text = title_line
+			room_name_label.add_theme_color_override("font_color", Color("#f3f8ff") if is_selected else Color("#e8f0fb"))
+		if activity_label != null:
+			activity_label.text = activity_text
+			activity_label.add_theme_color_override("font_color", Color("#9db1c4"))
+		if metrics_label != null:
+			metrics_label.text = details
+			metrics_label.add_theme_color_override("font_color", Color("#d4e4f5"))
 
 func _on_room_card_gui_input(event: InputEvent, card: PanelContainer) -> void:
 	if event is InputEventMouseButton:
@@ -2696,7 +2802,7 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"title": "Fast Forward through the rest of the day",
 			"body": "Running the final stretch at higher speed to reach day-end results.",
 			"target": ["PanelSpeedUpButton"],
-			"image": "res://Art/tutorial/FastForward_Arrows.png",
+			"image": "res://Art/FastForward_Arrows.png",
 			"priority": 95,
 			"one_shot": true,
 			"cooldown_s": 0.0,
