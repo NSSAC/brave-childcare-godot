@@ -2777,12 +2777,12 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"priority": 12,
 			"one_shot": true,
 			"cooldown_s": 0.0,
-			"trigger": {"type": "time_window", "start_s": 60.0, "end_s": 600.0},
+			"trigger": {"type": "runtime_progress", "progress_min": 0.02, "progress_max": 0.08},
 			"actions": [{"op": "wait", "duration_s": 8.0}],
 			"min_show_time_s": 8.0,
 			"max_show_time_s": 14.0,
 			"post_delay_s": 2.0,
-			"interrupt_threshold": 70,
+			"interrupt_threshold": 95,
 			"weight": 1.0,
 		},
 		{
@@ -2901,7 +2901,7 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"one_shot": false,
 			"cooldown_s": 300.0,
 			"max_shows": 4,
-			"trigger": {"type": "room_alert_active", "value": true},
+			"trigger": {"type": "room_viral_load", "source": "sensor_snapshot", "comparator": ">=", "value": room_alert_threshold_vl},
 			"actions": [
 				{"op": "select_room", "room_id": "$triggered_room_id"},
 				{"op": "set_ach", "room_id": "$triggered_room_id", "value": 6.0},
@@ -2979,6 +2979,29 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"weight": 1.5,
 		},
 		{
+			"id": "auto_return_to_standard_mode",
+			"title": "Returning to Standard Mode",
+			"body": "Loads are currently low across rooms while automation is active. Switching back to Standard mode.",
+			"target": ["PanelStandardManualToggleButton"],
+			"image": "res://Art/tutorial/step_025_Counters_and_Controls.png",
+			"priority": 68,
+			"one_shot": false,
+			"cooldown_s": 900.0,
+			"max_shows": 3,
+			"trigger": {"type": "mode_load_clear_window", "mode_on": true, "max_load": 200.0, "source": "sensor_snapshot", "progress_min": 0.60, "progress_max": 0.95},
+			"actions": [
+				{"op": "fit_map"},
+				{"op": "set_health_mode", "value": false},
+				{"op": "set_brave_mode", "value": false},
+				{"op": "wait", "duration_s": 8.0}
+			],
+			"min_show_time_s": 8.0,
+			"max_show_time_s": 14.0,
+			"post_delay_s": 2.0,
+			"interrupt_threshold": 90,
+			"weight": 1.2,
+		},
+		{
 			"id": "auto_speedup_mid_late",
 			"title": "Midday Fast Forward",
 			"body": "Now that we've seen how this all works together .",
@@ -2989,6 +3012,7 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"cooldown_s": 0.0,
 			"trigger": {"type": "runtime_progress", "progress_min": 0.50, "progress_max": 0.55},
 			"actions": [
+				{"op": "fit_map"},
 				{"op": "set_speed", "value": 2.4},
 				{"op": "set_overlay_note", "value": "Fast forwarding to afternoon dynamics."},
 				{"op": "wait", "duration_s": 6.0}
@@ -3011,6 +3035,7 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"cooldown_s": 0.0,
 			"trigger": {"type": "runtime_progress", "progress_min": 0.90, "progress_max": 1.00},
 			"actions": [
+				{"op": "fit_map"},
 				{"op": "set_speed", "value": 3.0},
 				{"op": "wait", "duration_s": 4.0}
 			],
@@ -3032,6 +3057,7 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 			"cooldown_s": 4.0,
 			"trigger": {"type": "runtime_progress", "progress_min": 0.0, "progress_max": 1.0},
 			"actions": [
+				{"op": "fit_map"},
 				{"op": "wait", "duration_s": 12.0}
 			],
 			"min_show_time_s": 12.0,
@@ -3066,7 +3092,7 @@ func _autoplay_alerting_rooms() -> Array:
 	for room in room_nodes:
 		if not is_instance_valid(room):
 			continue
-		if room.viral_load >= room_alert_threshold_vl:
+		if _room_alert_state(room):
 			alerting.append(room)
 	return alerting
 
@@ -3122,6 +3148,20 @@ func _compare_variant(value: Variant, comparator: String, expected: Variant) -> 
 		_:
 			return false
 
+func _autoplay_room_load_for_source(room, source: String) -> float:
+	if room == null or not is_instance_valid(room):
+		return 0.0
+	var normalized_source := source.strip_edges().to_lower()
+	if normalized_source == "sensor_snapshot":
+		var room_id := str(room.room_id)
+		if not room_vl_sensor_snapshot.has(room_id):
+			_capture_room_sensor_snapshot(room)
+		return maxf(float(room_vl_sensor_snapshot.get(room_id, room.viral_load)), 0.0)
+	if normalized_source == "displayed":
+		return _displayed_viral_load_for_room(room)
+	# Default keeps backward compatibility with existing autoplay cards.
+	return maxf(float(room.viral_load), 0.0)
+
 func _autoplay_trigger_matches(card: Dictionary) -> Dictionary:
 	var trigger: Dictionary = card.get("trigger", {"type": "immediate"})
 	var trigger_type: String = str(trigger.get("type", "immediate"))
@@ -3145,6 +3185,27 @@ func _autoplay_trigger_matches(card: Dictionary) -> Dictionary:
 		var progress_max: float = float(trigger.get("progress_max", 1.0))
 		return {"matched": progress >= progress_min and progress <= progress_max, "context": context}
 
+	if trigger_type == "mode_load_clear_window":
+		var progress: float = _autoplay_runtime_progress()
+		var progress_min: float = float(trigger.get("progress_min", 0.0))
+		var progress_max: float = float(trigger.get("progress_max", 1.0))
+		if progress < progress_min or progress > progress_max:
+			return {"matched": false, "context": context}
+
+		var require_mode_on: bool = bool(trigger.get("mode_on", true))
+		var mode_is_on: bool = health_mode_active or brave_mode_active
+		if require_mode_on and not mode_is_on:
+			return {"matched": false, "context": context}
+
+		var max_load: float = float(trigger.get("max_load", 200.0))
+		var source: String = str(trigger.get("source", "sensor_snapshot"))
+		for room in room_nodes:
+			if not is_instance_valid(room):
+				continue
+			if _autoplay_room_load_for_source(room, source) > max_load:
+				return {"matched": false, "context": context}
+		return {"matched": true, "context": context}
+
 	if trigger_type == "sensor_due_window":
 		var remaining_s := _autoplay_next_sensor_due_remaining_s()
 		var comparator: String = str(trigger.get("comparator", "<="))
@@ -3157,22 +3218,29 @@ func _autoplay_trigger_matches(card: Dictionary) -> Dictionary:
 		if alerting_rooms.size() < min_alert_room_count:
 			return {"matched": false, "context": context}
 		var chosen_room = alerting_rooms[0]
+		var chosen_load: float = _autoplay_room_load_for_source(chosen_room, "sensor_snapshot")
 		for room in alerting_rooms:
-			if room.viral_load > chosen_room.viral_load:
+			var room_load: float = _autoplay_room_load_for_source(room, "sensor_snapshot")
+			if room_load > chosen_load:
 				chosen_room = room
+				chosen_load = room_load
 		context["triggered_room_id"] = str(chosen_room.room_id)
 		return {"matched": true, "context": context}
 
 	if trigger_type == "room_viral_load":
 		var comparator: String = str(trigger.get("comparator", ">"))
 		var threshold: float = float(trigger.get("value", room_alert_threshold_vl))
+		var source: String = str(trigger.get("source", "realtime"))
 		var candidate = null
+		var candidate_load := -INF
 		for room in room_nodes:
 			if not is_instance_valid(room):
 				continue
-			if _compare_variant(room.viral_load, comparator, threshold):
-				if candidate == null or room.viral_load > candidate.viral_load:
+			var load_value := _autoplay_room_load_for_source(room, source)
+			if _compare_variant(load_value, comparator, threshold):
+				if candidate == null or load_value > candidate_load:
 					candidate = room
+					candidate_load = load_value
 		if candidate == null:
 			return {"matched": false, "context": context}
 		context["triggered_room_id"] = str(candidate.room_id)
@@ -3485,6 +3553,10 @@ func _autoplay_execute_action(action: Dictionary, context: Dictionary) -> bool:
 
 	if op == "focus_room":
 		return _autoplay_focus_room(_autoplay_resolve_room_id(action, context))
+
+	if op == "fit_map":
+		_fit_camera_to_map_contents()
+		return true
 
 	if op == "set_ach":
 		var room_id := _autoplay_resolve_room_id(action, context)
@@ -4390,6 +4462,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if autoplay_mode_active:
+		if event.is_action_pressed("tutorial_next") and not event.is_echo():
+			_autoplay_manual_next_card()
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed("room_next") and not event.is_echo():
+			_autoplay_manual_next_card()
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed("tutorial_exit") and not event.is_echo():
+			_stop_autoplay_mode()
+			get_viewport().set_input_as_handled()
+			return
 		get_viewport().set_input_as_handled()
 		return
 
