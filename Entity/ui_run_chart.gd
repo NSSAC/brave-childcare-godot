@@ -139,12 +139,18 @@ func _compute_domain(series: Array[Dictionary]) -> Dictionary:
 		min_y = 0.0
 		max_y = 1.0
 
-	var y_span: float = max(1.0, max_y - min_y)
-	max_y += y_span * 0.08
-	min_y = max(0.0, min_y - y_span * 0.03)
-	var nice_y: Dictionary = _nice_axis_bounds(min_y, max_y, 5)
-	min_y = float(nice_y["min"])
-	max_y = float(nice_y["max"])
+	var raw_min_y: float = min_y
+	var raw_max_y: float = max_y
+	var y_span: float = raw_max_y - raw_min_y
+	if y_span <= 0.0:
+		y_span = max(1.0, absf(raw_max_y), absf(raw_min_y))
+	var y_padding: float = y_span * 0.02
+	max_y = raw_max_y
+	# Keep zero-valued runs slightly above the plot border so the series stays visible.
+	if raw_min_y >= 0.0:
+		min_y = -y_padding
+	else:
+		min_y = raw_min_y - y_padding
 	min_t = chart_start_time_s
 	max_t = chart_end_time_s
 
@@ -191,10 +197,9 @@ func _draw_hour_grid(plot_rect: Rect2, min_t: float, max_t: float) -> void:
 			)
 
 func _draw_y_grid(plot_rect: Rect2, min_y: float, max_y: float) -> void:
-	var axis: Dictionary = _nice_axis_bounds(min_y, max_y, 5)
-	var tick_min: float = float(axis["min"])
-	var tick_max: float = float(axis["max"])
-	var tick_step: float = float(axis["step"])
+	var tick_step: float = _nice_step(max(1.0, max_y - min_y) / 5.0)
+	var tick_min: float = min_y
+	var tick_max: float = max_y
 	var tick_value: float = tick_min
 	while tick_value <= tick_max + tick_step * 0.5:
 		var y := _remap(tick_value, tick_min, tick_max, plot_rect.end.y, plot_rect.position.y)

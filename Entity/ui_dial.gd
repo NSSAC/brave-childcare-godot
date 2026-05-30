@@ -27,6 +27,11 @@ extends Control
 		label_text = value_new
 		queue_redraw()
 
+@export var center_text: String = "":
+	set(value_new):
+		center_text = value_new
+		queue_redraw()
+
 @export var value_decimals: int = 1:
 	set(value_new):
 		value_decimals = maxi(value_new, 0)
@@ -45,6 +50,21 @@ extends Control
 @export var label_font_size: int = 14:
 	set(value_new):
 		label_font_size = maxi(value_new, 8)
+		queue_redraw()
+
+@export var center_text_font_size: int = 20:
+	set(value_new):
+		center_text_font_size = maxi(value_new, 10)
+		queue_redraw()
+
+@export var center_text_color: Color = Color("#a8bfd6"):
+	set(value_new):
+		center_text_color = value_new
+		queue_redraw()
+
+@export var center_text_offset_y: float = -18.0:
+	set(value_new):
+		center_text_offset_y = value_new
 		queue_redraw()
 
 @export var snap_display_to_step: bool = false:
@@ -68,6 +88,10 @@ func set_current_value(new_value: float) -> void:
 
 func set_style(new_style: String) -> void:
 	dial_style = new_style
+	queue_redraw()
+
+func set_center_text(new_text: String) -> void:
+	center_text = new_text
 	queue_redraw()
 
 func _ready() -> void:
@@ -168,6 +192,8 @@ func _draw_speedometer() -> void:
 	var needle_deg := lerpf(start_deg, end_deg, ratio)
 	var needle_angle := deg_to_rad(needle_deg)
 	var needle_tip := center + Vector2(cos(needle_angle), sin(needle_angle)) * (radius - 18.0)
+	if center_text != "":
+		_draw_centered_multiline_label(center.x, center.y + center_text_offset_y, center_text, center_text_color, center_text_font_size)
 	draw_line(center, needle_tip, accent_color, 4.0)
 	draw_circle(center, 7.0, Color("#c9d5e3"))
 	
@@ -194,3 +220,19 @@ func _draw_centered_label(x: float, y: float, text_value: String, color: Color, 
 	var str_size := font.get_string_size(text_value, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
 	var pos := Vector2(x - str_size.x * 0.5, y)
 	draw_string(font, pos, text_value, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)
+
+func _draw_centered_multiline_label(x: float, y: float, text_value: String, color: Color, font_size: int) -> void:
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	var lines := text_value.split("\n")
+	if lines.is_empty():
+		return
+	var line_height := float(font.get_height(font_size))
+	var total_height := line_height * float(lines.size() - 1)
+	var baseline := y - total_height * 0.5
+	for line in lines:
+		var str_size := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
+		var pos := Vector2(x - str_size.x * 0.5, baseline)
+		draw_string(font, pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)
+		baseline += line_height

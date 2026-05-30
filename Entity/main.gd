@@ -45,8 +45,10 @@ extends Node
 @onready var panel_next_room_button: Button = %PanelNextRoomButton
 @onready var panel_ach_down_button: Button = %PanelAchDownButton
 @onready var panel_ach_up_button: Button = %PanelAchUpButton
+@onready var panel_standard_manual_toggle_button: Button = %PanelStandardManualToggleButton
 @onready var panel_health_toggle_button: Button = %PanelHealthToggleButton
 @onready var panel_brave_toggle_button: Button = %PanelBraveToggleButton
+@onready var panel_realtime_view_toggle_button: Button = %PanelRealtimeViewToggleButton
 @onready var panel_autoplay_toggle_button: Button = %PanelAutoplayToggleButton
 @onready var panel_game_controls_button: Button = %PanelGameControlsButton
 @onready var panel_speed_down_button: Button = %PanelSpeedDownButton
@@ -157,10 +159,13 @@ extends Node
 @export var autoplay_body_max_chars: int = 220
 @export var overlay_card_bottom_priority_layout_enabled: bool = true
 @export var overlay_card_safe_top_fraction: float = 0.02
+@export var tutorial_steps_file_path: String = "res://inputs/tutorial_steps.json"
+@export var autoplay_cards_file_path: String = "res://inputs/autoplay_cards.json"
 
 var room_nodes: Array = []
 var selected_room_idx: int = -1
 var room_vl_last: Dictionary = {}
+var room_vl_sensor_snapshot: Dictionary = {}
 var room_alert_last_eval_s: Dictionary = {}
 var room_alert_active: Dictionary = {}
 var room_alert_trigger_count_total: int = 0
@@ -172,6 +177,7 @@ var room_panel_next_update_s: float = 0.0
 var last_viewport_size: Vector2 = Vector2.ZERO
 var health_mode_active: bool = false
 var brave_mode_active: bool = false
+var realtime_view_requested: bool = false
 var health_mode_baseline_ach: float = 3.0
 var health_mode_max_ach: float = 9.0
 var health_mode_min_ach: float = 0.0
@@ -924,6 +930,22 @@ func _return_to_title_from_run() -> void:
 func _on_game_over_continue_pressed() -> void:
 	_return_to_title_from_run()
 
+func _room_panel_target_size(viewport_size: Vector2) -> Vector2:
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return Vector2.ZERO
+
+	var panel_width := clampf(viewport_size.x * room_panel_width_fraction, room_panel_min_width, room_panel_max_width)
+	var panel_height := clampf(viewport_size.y * room_panel_height_fraction, room_panel_min_height, room_panel_max_height)
+	panel_width = min(panel_width, viewport_size.x * room_panel_max_width_fraction)
+	panel_width = min(panel_width, max(160.0, viewport_size.x - room_panel_screen_margin * 2.0))
+	panel_height = min(panel_height, max(120.0, viewport_size.y - room_panel_screen_margin * 2.0))
+	return Vector2(panel_width, panel_height)
+
+func _initial_camera_visible_viewport_size(viewport_size: Vector2) -> Vector2:
+	var panel_size := _room_panel_target_size(viewport_size)
+	var visible_width := maxf(1.0, viewport_size.x - panel_size.x - room_panel_screen_margin)
+	return Vector2(visible_width, maxf(1.0, viewport_size.y))
+
 func _fit_camera_to_map_contents() -> void:
 	if camera_2d == null or map == null:
 		return
@@ -967,10 +989,13 @@ func _fit_camera_to_map_contents() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
+	var visible_viewport := _initial_camera_visible_viewport_size(viewport_size)
 
-	var zoom_x := viewport_size.x / content_size.x
-	var zoom_y := viewport_size.y / content_size.y
+	var zoom_x := visible_viewport.x / content_size.x
+	var zoom_y := visible_viewport.y / content_size.y
 	var target_zoom := clampf(min(zoom_x, zoom_y), initial_camera_zoom_min, initial_camera_zoom_max)
+	var right_occlusion_px := maxf(0.0, viewport_size.x - visible_viewport.x)
+	center.x += (right_occlusion_px * 0.5) / target_zoom
 
 	camera_2d.position = center
 	camera_2d.offset = Vector2.ZERO
@@ -986,11 +1011,9 @@ func _update_room_panel_layout() -> void:
 
 	last_viewport_size = viewport_size
 
-	var panel_width := clampf(viewport_size.x * room_panel_width_fraction, room_panel_min_width, room_panel_max_width)
-	var panel_height := clampf(viewport_size.y * room_panel_height_fraction, room_panel_min_height, room_panel_max_height)
-	panel_width = min(panel_width, viewport_size.x * room_panel_max_width_fraction)
-	panel_width = min(panel_width, max(160.0, viewport_size.x - room_panel_screen_margin * 2.0))
-	panel_height = min(panel_height, max(120.0, viewport_size.y - room_panel_screen_margin * 2.0))
+	var panel_size := _room_panel_target_size(viewport_size)
+	var panel_width := panel_size.x
+	var panel_height := panel_size.y
 
 	room_panel.anchor_left = 1.0
 	room_panel.anchor_right = 1.0
@@ -1340,7 +1363,8 @@ func _update_room_cards(selected_room) -> void:
 		var activity_label: Label = card.get_meta("room_card_activity_label")
 		var metrics_label: Label = card.get_meta("room_card_metrics_label")
 		var is_selected := idx == selected_room_idx
-		var trend_symbol := _room_vl_trend_symbol(room.room_id, room.viral_load)
+		var displayed_load := _displayed_viral_load_for_room(room)
+		var trend_symbol := _room_vl_trend_symbol(room.room_id, displayed_load)
 		var is_alerting := _room_alert_state(room)
 		var mode_text := _room_ach_mode_marker(room)
 		var room_description := _room_schedule_description(room)
@@ -1370,7 +1394,7 @@ func _update_room_cards(selected_room) -> void:
 		if room.has_method("display_name"):
 			title_line = str(room.display_name())
 		var activity_text: String = room_description if room_description != "" else "No scheduled activity"
-		var details := "Load: %.0f %s | %s ACH %.1f" % [room.viral_load, trend_symbol, mode_text, room.ach_current]
+		var details := "Load: %.0f %s | %s ACH %.1f" % [displayed_load, trend_symbol, mode_text, room.ach_current]
 
 		if room_name_label != null:
 			room_name_label.text = title_line
@@ -1409,11 +1433,77 @@ func _update_alert_lamp_visual(now_s: float) -> void:
 	var border := Color(clampf(0.45 + 0.25 * pulse, 0.0, 1.0), 0.08, 0.08, 1.0)
 	panel_alert_lamp.add_theme_stylebox_override("panel", _build_alert_lamp_style(fill, border))
 
+func _build_skeuo_button_style(fill: Color, border: Color, shadow: Color, shadow_size: int = 5) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = border
+	style.corner_radius_top_left = 9
+	style.corner_radius_top_right = 9
+	style.corner_radius_bottom_right = 9
+	style.corner_radius_bottom_left = 9
+	style.shadow_color = shadow
+	style.shadow_size = shadow_size
+	return style
+
+func _apply_skeuo_control_button_theme(button: Button, active: bool, accent: Color, enabled: bool) -> void:
+	if button == null:
+		return
+
+	var off_fill := accent.darkened(0.58).lerp(Color("#26374f"), 0.55)
+	var on_fill := accent.lightened(0.08)
+	var normal_fill := on_fill if active else off_fill
+	var normal_border := accent.darkened(0.62) if active else accent.darkened(0.78)
+	var normal_shadow := Color(accent.r, accent.g, accent.b, 0.36) if active else Color(accent.r, accent.g, accent.b, 0.16)
+
+	var hover_fill := normal_fill.lightened(0.06)
+	# Keep pressed brightness aligned with current state color for a firm plastic-button look.
+	var pressed_fill := normal_fill
+	var disabled_fill := off_fill.darkened(0.2)
+	var disabled_border := normal_border.darkened(0.2)
+
+	button.add_theme_stylebox_override("normal", _build_skeuo_button_style(normal_fill, normal_border, normal_shadow, 5))
+	button.add_theme_stylebox_override("hover", _build_skeuo_button_style(hover_fill, normal_border.lightened(0.08), normal_shadow, 6))
+	button.add_theme_stylebox_override("pressed", _build_skeuo_button_style(pressed_fill, normal_border, Color(0.0, 0.0, 0.0, 0.2), 2))
+	button.add_theme_stylebox_override("disabled", _build_skeuo_button_style(disabled_fill, disabled_border, Color(0.0, 0.0, 0.0, 0.18), 2))
+
+	if enabled:
+		var active_font := Color(0.03, 0.04, 0.06, 1.0)
+		var inactive_font := Color("#eef6ff")
+		var base_font := active_font if active else inactive_font
+		button.add_theme_color_override("font_color", base_font)
+		button.add_theme_color_override("font_hover_color", base_font)
+		button.add_theme_color_override("font_pressed_color", base_font)
+	else:
+		button.add_theme_color_override("font_color", Color("#8da2bb"))
+		button.add_theme_color_override("font_hover_color", Color("#8da2bb"))
+		button.add_theme_color_override("font_pressed_color", Color("#8da2bb"))
+
+func _configure_mode_toggle_button(button: Button) -> void:
+	if button == null:
+		return
+	button.custom_minimum_size.y = 84.0
+	button.add_theme_font_size_override("font_size", 22)
+
+func _is_standard_manual_mode_active() -> bool:
+	return not health_mode_active and not brave_mode_active
+
 func _refresh_panel_controls_state() -> void:
+	if panel_standard_manual_toggle_button != null:
+		panel_standard_manual_toggle_button.text = "Standard"
+		_configure_mode_toggle_button(panel_standard_manual_toggle_button)
 	if panel_health_toggle_button != null:
-		panel_health_toggle_button.text = "Health: ON" if health_mode_active else "Health: OFF"
+		panel_health_toggle_button.text = "Health"
+		_configure_mode_toggle_button(panel_health_toggle_button)
 	if panel_brave_toggle_button != null:
-		panel_brave_toggle_button.text = "BRAVE: ON" if brave_mode_active else "BRAVE: OFF"
+		panel_brave_toggle_button.text = "BRAVE"
+		_configure_mode_toggle_button(panel_brave_toggle_button)
+	if panel_realtime_view_toggle_button != null:
+		panel_realtime_view_toggle_button.text = "Real-time View"
+		_configure_mode_toggle_button(panel_realtime_view_toggle_button)
 	if panel_autoplay_toggle_button != null:
 		panel_autoplay_toggle_button.text = "Exit Auto-play" if autoplay_mode_active else "Start Auto-play"
 	if panel_pause_button != null:
@@ -1429,6 +1519,13 @@ func _refresh_panel_controls_state() -> void:
 
 	var has_rooms: bool = room_nodes.size() > 0
 	var sim_active: bool = Global.is_simulation_active
+	_apply_skeuo_control_button_theme(panel_standard_manual_toggle_button, _is_standard_manual_mode_active(), Color("#cdd3df"), sim_active)
+	_apply_skeuo_control_button_theme(panel_health_toggle_button, health_mode_active, Color("#4fbf7a"), sim_active)
+	_apply_skeuo_control_button_theme(panel_brave_toggle_button, brave_mode_active, Color("#4fb8ff"), sim_active)
+	_apply_skeuo_control_button_theme(panel_realtime_view_toggle_button, _is_realtime_view_effective(), Color("#ffd24f"), sim_active)
+	_apply_skeuo_control_button_theme(panel_autoplay_toggle_button, autoplay_mode_active, Color("#9f86ff"), sim_active)
+	_apply_skeuo_control_button_theme(panel_game_controls_button, game_controls_overlay_active, Color("#78a8ff"), sim_active)
+
 	if pause_overlay != null:
 		pause_overlay.visible = sim_active and Global.is_simulation_paused and not game_controls_overlay_active
 	if game_controls_overlay != null:
@@ -1442,10 +1539,14 @@ func _refresh_panel_controls_state() -> void:
 		panel_ach_down_button.disabled = not has_rooms
 	if panel_ach_up_button != null:
 		panel_ach_up_button.disabled = not has_rooms
+	if panel_standard_manual_toggle_button != null:
+		panel_standard_manual_toggle_button.disabled = not sim_active
 	if panel_health_toggle_button != null:
 		panel_health_toggle_button.disabled = not sim_active
 	if panel_brave_toggle_button != null:
 		panel_brave_toggle_button.disabled = not sim_active
+	if panel_realtime_view_toggle_button != null:
+		panel_realtime_view_toggle_button.disabled = not sim_active
 	if panel_autoplay_toggle_button != null:
 		panel_autoplay_toggle_button.disabled = not sim_active
 	if panel_speed_down_button != null:
@@ -1469,6 +1570,15 @@ func _on_panel_ach_down_pressed() -> void:
 func _on_panel_ach_up_pressed() -> void:
 	_adjust_selected_room_ach(ROOM_ACH_STEP)
 
+func _on_panel_standard_manual_toggle_pressed() -> void:
+	if not Global.is_simulation_active:
+		return
+	_set_health_mode(false)
+	_set_brave_mode(false)
+	_set_realtime_view_requested(false)
+	_update_room_panel(true)
+	_refresh_panel_controls_state()
+
 func _on_panel_health_toggle_pressed() -> void:
 	if not Global.is_simulation_active:
 		return
@@ -1479,6 +1589,12 @@ func _on_panel_brave_toggle_pressed() -> void:
 	if not Global.is_simulation_active:
 		return
 	_set_brave_mode(not brave_mode_active)
+	_refresh_panel_controls_state()
+
+func _on_panel_realtime_view_toggle_pressed() -> void:
+	if not Global.is_simulation_active:
+		return
+	_set_realtime_view_requested(not realtime_view_requested)
 	_refresh_panel_controls_state()
 
 func _on_panel_autoplay_toggle_pressed() -> void:
@@ -1600,6 +1716,8 @@ func _init_room_panel_widgets() -> void:
 			panel_vl_gauge.call("set_style", "speedometer")
 		if panel_vl_gauge.has_method("set_current_value"):
 			panel_vl_gauge.call("set_current_value", 0.0)
+		if panel_vl_gauge.has_method("set_center_text"):
+			panel_vl_gauge.call("set_center_text", "Last Sensed\nn/a")
 
 	panel_alert_lamp_style_off = _build_alert_lamp_style(Color("#6a6d73"), Color("#2e3033"))
 	panel_alert_lamp_style_on = _build_alert_lamp_style(Color("#ff3b3b"), Color("#7a0b0b"))
@@ -1608,6 +1726,8 @@ func _init_room_panel_widgets() -> void:
 
 func _update_room_panel_widgets(selected_room, is_alerting: bool) -> void:
 	panel_alert_lamp_is_alerting = is_alerting
+	if panel_vl_gauge != null and panel_vl_gauge.has_method("set_center_text"):
+		panel_vl_gauge.call("set_center_text", _selected_room_vl_status_text(selected_room))
 	if selected_room == null:
 		if panel_ach_gauge != null:
 			if panel_ach_gauge.has_method("set_current_value"):
@@ -1622,8 +1742,7 @@ func _update_room_panel_widgets(selected_room, is_alerting: bool) -> void:
 				panel_ach_gauge.call("set_current_value", clampf(selected_room.ach_current, 0.0, panel_ach_gauge_max))
 		if panel_vl_gauge != null:
 			if panel_vl_gauge.has_method("set_current_value"):
-				# Keep the dial text aligned with real-time load; the needle still caps at gauge max.
-				panel_vl_gauge.call("set_current_value", maxf(selected_room.viral_load, 0.0))
+				panel_vl_gauge.call("set_current_value", _displayed_viral_load_for_room(selected_room))
 		_update_alert_lamp_visual(Global.current_time_s())
 
 	var exposure_stats: Dictionary = _exposure_stats()
@@ -1884,6 +2003,7 @@ func _set_brave_mode(active: bool) -> void:
 		return
 
 	brave_mode_active = active
+	realtime_view_requested = active
 	var current_time_s: float = Global.current_time_s()
 	for room in room_nodes:
 		if is_instance_valid(room) and room.has_method("set_health_mode_enabled"):
@@ -2460,10 +2580,14 @@ func _configure_side_panel_button_focus_behavior() -> void:
 		panel_ach_down_button.focus_mode = Control.FOCUS_NONE
 	if panel_ach_up_button != null:
 		panel_ach_up_button.focus_mode = Control.FOCUS_NONE
+	if panel_standard_manual_toggle_button != null:
+		panel_standard_manual_toggle_button.focus_mode = Control.FOCUS_NONE
 	if panel_health_toggle_button != null:
 		panel_health_toggle_button.focus_mode = Control.FOCUS_NONE
 	if panel_brave_toggle_button != null:
 		panel_brave_toggle_button.focus_mode = Control.FOCUS_NONE
+	if panel_realtime_view_toggle_button != null:
+		panel_realtime_view_toggle_button.focus_mode = Control.FOCUS_NONE
 	if panel_autoplay_toggle_button != null:
 		panel_autoplay_toggle_button.focus_mode = Control.FOCUS_NONE
 	if panel_speed_down_button != null:
@@ -2489,9 +2613,88 @@ func _request_start_with_prompt(config_path: String) -> void:
 	start_simulation(config_path)
 	_begin_tutorial_sequence()
 
+func _load_overlay_cards_from_file(file_path: String, dataset_name: String) -> Array[Dictionary]:
+	if file_path.strip_edges() == "":
+		return []
+	if not FileAccess.file_exists(file_path):
+		print("%s file not found, using in-code fallback: %s" % [dataset_name, file_path])
+		return []
+
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		print("Unable to open %s file, using in-code fallback: %s" % [dataset_name, file_path])
+		return []
+
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not (parsed is Array):
+		print("Invalid %s format in %s, expected top-level array." % [dataset_name, file_path])
+		return []
+
+	var loaded_cards: Array[Dictionary] = []
+	for entry in parsed:
+		if entry is Dictionary:
+			loaded_cards.append((entry as Dictionary).duplicate(true))
+
+	if loaded_cards.is_empty():
+		print("No usable entries in %s file, using in-code fallback: %s" % [dataset_name, file_path])
+	return loaded_cards
+
+func _normalize_tutorial_steps(steps: Array[Dictionary]) -> Array[Dictionary]:
+	var normalized: Array[Dictionary] = []
+	for raw_step in steps:
+		var step := raw_step.duplicate(true)
+		var raw_title: String = str(step.get("title", "")).strip_edges()
+		if raw_title == "{{WELCOME_TITLE}}":
+			raw_title = _tutorial_welcome_title()
+		if raw_title == "":
+			raw_title = "Tutorial"
+		step["title"] = raw_title
+		step["body"] = str(step.get("body", "")).strip_edges()
+		step["image"] = str(step.get("image", "")).strip_edges()
+		if not step.has("target"):
+			step["target"] = ""
+		normalized.append(step)
+	return normalized
+
+func _normalize_autoplay_cards(cards: Array[Dictionary]) -> Array[Dictionary]:
+	var normalized: Array[Dictionary] = []
+	for raw_card in cards:
+		var card := raw_card.duplicate(true)
+		var card_id: String = str(card.get("id", "")).strip_edges()
+		if card_id == "":
+			continue
+		card["id"] = card_id
+		card["title"] = str(card.get("title", "Autoplay")).strip_edges()
+		card["body"] = str(card.get("body", "")).strip_edges()
+		card["image"] = str(card.get("image", "")).strip_edges()
+		if not card.has("target"):
+			card["target"] = []
+		if not (card.get("trigger", {}) is Dictionary):
+			card["trigger"] = {"type": "immediate"}
+		if not (card.get("actions", []) is Array):
+			card["actions"] = []
+		normalized.append(card)
+	return normalized
+
+func _load_tutorial_steps_with_fallback() -> Array[Dictionary]:
+	var loaded_steps := _load_overlay_cards_from_file(tutorial_steps_file_path, "Tutorial steps")
+	if not loaded_steps.is_empty():
+		var normalized_steps := _normalize_tutorial_steps(loaded_steps)
+		if not normalized_steps.is_empty():
+			return normalized_steps
+	return _build_tutorial_steps()
+
+func _load_autoplay_cards_with_fallback() -> Array[Dictionary]:
+	var loaded_cards := _load_overlay_cards_from_file(autoplay_cards_file_path, "Autoplay cards")
+	if not loaded_cards.is_empty():
+		var normalized_cards := _normalize_autoplay_cards(loaded_cards)
+		if not normalized_cards.is_empty():
+			return normalized_cards
+	return _build_autoplay_cards()
+
 func _start_autoplay_mode() -> void:
 	autoplay_mode_active = true
-	autoplay_cards_pool = _build_autoplay_cards()
+	autoplay_cards_pool = _load_autoplay_cards_with_fallback()
 	autoplay_seen_ids.clear()
 	autoplay_completed_ids.clear()
 	autoplay_show_counts.clear()
@@ -2568,7 +2771,7 @@ func _build_autoplay_cards() -> Array[Dictionary]:
 		{
 			"id": "auto_intro_panel_overview",
 			"title": "Side Panel: Status and Controls",
-			"body": "The right panel tracks the Load and fan speed, or air changes per hour (ACH).  The guages show the levels in the currently selected room.",
+			"body": "The right panel tracks Load and fan speed (ACH). By default, Load values are sensor snapshots and update at each sensor read. Enable BRAVE + Realtime View (V) for live values.",
 			"target": ["PanelViralLoadGauge", "PanelAchGauge"],
 			"image": "res://Art/tutorial/step_025_Counters_and_Controls.png",
 			"priority": 12,
@@ -3468,7 +3671,7 @@ func _build_tutorial_steps() -> Array[Dictionary]:
 		},
 		{
 			"title": "Fifty people and 8 Rooms, its a lot to manage",
-			"body": "Each room card shows ACH, viral load trend, and alert status. Toggle between the rooms (⓵ & ⓸ or E & R).",
+			"body": "Each room card shows ACH, alert status, and the latest sensor-snapshot load trend. Toggle rooms (⓵ & ⓸ or E & R). For live load updates, turn on BRAVE and Realtime View (V).",
 			"target": "PanelRoomCards",
 			"image": "res://Art/tutorial/RoomCard.png"
 		},
@@ -3515,7 +3718,7 @@ func _tutorial_texture_for_path(image_path: String) -> Texture2D:
 	return null
 
 func _begin_tutorial_sequence() -> void:
-	tutorial_steps = _build_tutorial_steps()
+	tutorial_steps = _load_tutorial_steps_with_fallback()
 	if tutorial_steps.is_empty():
 		return
 
@@ -3761,6 +3964,7 @@ func start_simulation(file: String):
 	_set_health_mode(false)
 
 	room_vl_last.clear()
+	room_vl_sensor_snapshot.clear()
 	room_alert_last_eval_s.clear()
 	room_alert_active.clear()
 	room_alert_trigger_count_total = 0
@@ -3769,6 +3973,7 @@ func start_simulation(file: String):
 	room_alert_raw_count_by_room.clear()
 	room_cost_last_update_s = Global.runtime_start_s
 	room_panel_next_update_s = Global.runtime_start_s
+	realtime_view_requested = false
 
 	Global.sim_clock_s = Global.runtime_start_s
 	Global.prev_abs_event_s = Global.runtime_start_s
@@ -4071,10 +4276,14 @@ func _ready() -> void:
 		panel_ach_down_button.pressed.connect(_on_panel_ach_down_pressed)
 	if panel_ach_up_button != null:
 		panel_ach_up_button.pressed.connect(_on_panel_ach_up_pressed)
+	if panel_standard_manual_toggle_button != null:
+		panel_standard_manual_toggle_button.pressed.connect(_on_panel_standard_manual_toggle_pressed)
 	if panel_health_toggle_button != null:
 		panel_health_toggle_button.pressed.connect(_on_panel_health_toggle_pressed)
 	if panel_brave_toggle_button != null:
 		panel_brave_toggle_button.pressed.connect(_on_panel_brave_toggle_pressed)
+	if panel_realtime_view_toggle_button != null:
+		panel_realtime_view_toggle_button.pressed.connect(_on_panel_realtime_view_toggle_pressed)
 	if panel_autoplay_toggle_button != null:
 		panel_autoplay_toggle_button.pressed.connect(_on_panel_autoplay_toggle_pressed)
 	if panel_speed_down_button != null:
@@ -4163,6 +4372,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_brave_mode(not brave_mode_active)
 			get_viewport().set_input_as_handled()
 			return
+		if Global.is_simulation_active and event.is_action_pressed("realtime_view_toggle") and not event.is_echo():
+			_set_realtime_view_requested(not realtime_view_requested)
+			get_viewport().set_input_as_handled()
+			return
 		get_viewport().set_input_as_handled()
 		return
 
@@ -4220,6 +4433,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	if Global.is_simulation_active and event.is_action_pressed("realtime_view_toggle") and not event.is_echo():
+		_set_realtime_view_requested(not realtime_view_requested)
+		get_viewport().set_input_as_handled()
+		return
+
 	if not Global.is_simulation_active and title_screen != null and title_screen.visible and event.is_action_pressed("start_simulation") and not event.is_echo():
 		_on_start_simulation_default_button_pressed()
 		get_viewport().set_input_as_handled()
@@ -4268,6 +4486,54 @@ func _room_ach_mode_marker(room) -> String:
 	if room.has_method("ach_mode_marker"):
 		return room.ach_mode_marker()
 	return "🅂" if room.has_ach_schedule() else "🄼"
+
+func _is_realtime_view_effective() -> bool:
+	return brave_mode_active or realtime_view_requested
+
+func _set_realtime_view_requested(active: bool) -> void:
+	if realtime_view_requested == active:
+		return
+	realtime_view_requested = active
+	_update_room_panel(true)
+
+func _capture_room_sensor_snapshot(room) -> void:
+	if room == null or not is_instance_valid(room):
+		return
+	room_vl_sensor_snapshot[str(room.room_id)] = maxf(float(room.viral_load), 0.0)
+
+func _displayed_viral_load_for_room(room) -> float:
+	if room == null or not is_instance_valid(room):
+		return 0.0
+	if _is_realtime_view_effective():
+		return maxf(float(room.viral_load), 0.0)
+	var room_id := str(room.room_id)
+	if not room_vl_sensor_snapshot.has(room_id):
+		_capture_room_sensor_snapshot(room)
+	return maxf(float(room_vl_sensor_snapshot.get(room_id, room.viral_load)), 0.0)
+
+func _selected_room_vl_status_text(selected_room) -> String:
+	if selected_room == null or not is_instance_valid(selected_room):
+		return "Last Sensed\nn/a"
+	if _is_realtime_view_effective():
+		return "Risk Model\nReal-time Estimate"
+	var room_id := str(selected_room.room_id)
+	if not room_alert_last_eval_s.has(room_id):
+		return "Last Sensed\nn/a"
+	return "Last Sensed\n%s" % _format_sim_time(float(room_alert_last_eval_s.get(room_id, 0.0)))
+
+func _format_sim_time(time_s: float) -> String:
+	var total_minutes := int(floor(maxf(time_s, 0.0) / 60.0))
+	var hours := int(total_minutes / 60)
+	var minutes := int(total_minutes % 60)
+	return "%02d:%02d" % [hours, minutes]
+
+func _push_room_display_load_overrides() -> void:
+	for room in room_nodes:
+		if not is_instance_valid(room):
+			continue
+		if room.has_method("set_displayed_viral_load"):
+			var use_snapshot_override := not _is_realtime_view_effective()
+			room.call("set_displayed_viral_load", _displayed_viral_load_for_room(room), use_snapshot_override)
 
 func _sim_speed_bounds() -> Vector2:
 	var min_scale: float = float(min(sim_speed_scale_min, sim_speed_scale_max))
@@ -4370,6 +4636,7 @@ func _room_alert_state(room) -> bool:
 			should_evaluate = true
 
 	if should_evaluate:
+		_capture_room_sensor_snapshot(room)
 		var new_state: bool = room.viral_load >= room_alert_threshold_vl
 		room_alert_active[room_id] = new_state
 		if new_state:
@@ -4530,8 +4797,9 @@ func _update_room_panel(force_update: bool = false) -> void:
 			selected_room = room
 			selected_alert = bool(room_alert_active.get(room.room_id, false))
 
+	_push_room_display_load_overrides()
 	_update_room_cards(selected_room)
-	room_panel_text.text = "[b]Panel Notes[/b]\nKeyboard shortcuts still work: R/E, +/- , H, S, D."
+	room_panel_text.text = "[b]Panel Notes[/b]\nKeyboard shortcuts still work: R/E, +/-, H, B, V, S, D."
 	_update_room_panel_widgets(selected_room, selected_alert)
 	_refresh_panel_controls_state()
 

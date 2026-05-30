@@ -52,6 +52,8 @@ var occupants: Dictionary[String, Person] = {}
 var ach_schedule: Array[Dictionary] = []
 var ach_schedule_idx: int = 0
 var is_selected: bool = false
+var displayed_viral_load: float = 0.0
+var displayed_viral_load_override_active: bool = false
 var ach_last_update_source: String = "manual"
 var health_mode_enabled: bool = false
 var brave_mode_enabled: bool = false
@@ -97,6 +99,8 @@ func _ready() -> void:
 		room_id = get_path()
 
 	ach_current = ach_default
+	displayed_viral_load = viral_load
+	displayed_viral_load_override_active = false
 	label_background.top_level = true
 	label_background.z_index = _current_label_z_index()
 	label_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -151,6 +155,8 @@ func _update_alert_overlays() -> void:
 
 func reset_for_simulation(start_time_s: float):
 	viral_load = 0.0
+	displayed_viral_load = viral_load
+	displayed_viral_load_override_active = false
 	ach_current = _clamp_ach(ach_default)
 	ach_last_update_source = ACH_SOURCE_MANUAL
 	ach_schedule_idx = 0
@@ -222,6 +228,19 @@ func set_selected(selected: bool):
 		label_background.z_index = _current_label_z_index()
 	label_selection_dirty = true
 	_refresh_label()
+
+func set_displayed_viral_load(value: float, use_override: bool = true) -> void:
+	var next_value := maxf(value, 0.0)
+	if is_equal_approx(displayed_viral_load, next_value) and displayed_viral_load_override_active == use_override:
+		return
+	displayed_viral_load = next_value
+	displayed_viral_load_override_active = use_override
+	_refresh_label()
+
+func _current_displayed_viral_load() -> float:
+	if displayed_viral_load_override_active:
+		return displayed_viral_load
+	return viral_load
 
 func _current_label_z_index() -> int:
 	return label_selected_z_index if is_selected else label_unselected_z_index
@@ -314,15 +333,16 @@ func _refresh_label(infected_count: int = -1):
 		infected_count = _infected_count_now()
 
 	var short_room_name := _short_room_name(room_id)
+	var display_vl := _current_displayed_viral_load()
 	title_label.text = short_room_name
 	schedule_label.text = schedule_description if schedule_description != "" else "Schedule: n/a"
 	vl_prefix_label.text = "Load"
 	ach_prefix_label.text = "ACH"
-	vl_value_label.text = "%d" % int(round(viral_load))
+	vl_value_label.text = "%d" % int(round(display_vl))
 	ach_value_label.text = "%d" % int(round(ach_current))
 
-	var vl_color := _room_vl_color(viral_load)
-	_apply_gauge_fill(vl_gauge_track, vl_gauge_fill, _vl_ratio(), vl_color)
+	var vl_color := _room_vl_color(display_vl)
+	_apply_gauge_fill(vl_gauge_track, vl_gauge_fill, _vl_ratio(display_vl), vl_color)
 	_apply_gauge_fill(ach_gauge_track, ach_gauge_fill, _ach_ratio(), ach_gauge_color)
 
 	title_label.add_theme_color_override("font_color", label_text_color)
@@ -465,8 +485,8 @@ func _apply_gauge_fill(track: ColorRect, fill: ColorRect, ratio: float, fill_col
 	fill.color = fill_color
 	fill.size = Vector2(maxf(track.size.x * clampf(ratio, 0.0, 1.0), 0.0), track.size.y)
 
-func _vl_ratio() -> float:
-	return clampf(viral_load / PANEL_VL_MAX_REFERENCE, 0.0, 1.0)
+func _vl_ratio(current_viral_load: float) -> float:
+	return clampf(current_viral_load / PANEL_VL_MAX_REFERENCE, 0.0, 1.0)
 
 func _ach_ratio() -> float:
 	if is_equal_approx(ach_max, ach_min):

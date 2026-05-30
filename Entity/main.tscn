@@ -542,6 +542,34 @@ theme_override_colors/font_color = Color(0.84, 0.87, 1, 1)
 theme_override_font_sizes/font_size = 15
 text = "Scheduled with Manual"
 
+[node name="ModeStateRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PanelStandardManualToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeStateRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Standard"
+
+[node name="PanelHealthToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeStateRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Health: OFF"
+
+[node name="PanelBraveToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeStateRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "BRAVE: OFF"
+
+[node name="PanelRealtimeViewToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeStateRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Realtime: OFF"
+
 [node name="DialRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
 theme_override_constants/separation = 10
@@ -609,6 +637,7 @@ value_decimals = 0
 accent_color = Color(1, 0.521569, 0.301961, 1)
 value_font_size = 30
 label_font_size = 15
+center_text_offset_y = -35.0
 
 [node name="RoomCardsLabel" type="Label" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
@@ -817,23 +846,17 @@ text = "Next Room"
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PanelHealthToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Health: OFF"
-
-[node name="PanelBraveToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "BRAVE: OFF"
-
 [node name="PanelAutoplayToggleButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Start Auto-play"
+
+[node name="PanelGameControlsButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/ModeControlsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Game Controls (?)"
 
 [node name="SpeedControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
@@ -856,15 +879,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Pause"
-
-[node name="HelpControlsRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
-layout_mode = 2
-
-[node name="PanelGameControlsButton" type="Button" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox/HelpControlsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Game Controls (?)"
 
 [node name="PanelEndSimRow" type="HBoxContainer" parent="Map/CanvasLayer/RoomPanel/MarginContainer/PanelVBox"]
 layout_mode = 2
