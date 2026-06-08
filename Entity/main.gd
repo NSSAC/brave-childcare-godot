@@ -7,6 +7,7 @@ extends Node
 @onready var start_simulation_button: Button = %StartSimulationButton
 @onready var start_simulation_default_button: Button = %StartSimulationDefaultButton
 @onready var start_autoplay_button: Button = %StartAutoplayButton
+@onready var start_autoplay_countdown_bar: ProgressBar = %StartAutoplayCountdownBar
 @onready var title_label: Label = $TitleScreen/TitleLabel
 @onready var version_label: Label = %VersionLabel
 @onready var level_button: Button = %LevelButton
@@ -218,6 +219,9 @@ var autoplay_post_delay_until_s: float = 0.0
 var autoplay_overlay_note: String = ""
 var autoplay_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var autoplay_camera_focus_tween: Tween
+var last_run_started_with_autoplay: bool = false
+var title_autoplay_restart_countdown_active: bool = false
+var title_autoplay_restart_elapsed_s: float = 0.0
 var level_baseline_run_ids_by_level: Dictionary = {}
 var recent_run_ids_by_level: Dictionary = {}
 var last_run_summary_by_level: Dictionary = {}
@@ -235,6 +239,7 @@ const TUTORIAL_HIGHLIGHT_PADDING: float = 12.0
 const AUTOPLAY_INTERRUPT_COOLDOWN_S: float = 30.0
 const AUTOPLAY_DEFAULT_INTERRUPT_THRESHOLD: int = 100
 const AUTOPLAY_DEFAULT_MAX_SHOW_S: float = 24.0
+const TITLE_AUTOPLAY_RESTART_COUNTDOWN_S: float = 30.0
 const RANDOM_PLAYER_NAMES: Array[String] = [
 	"Merida", "Elinor", "Fergus", "Harris", "Hubert", "Hamish", "Angus", "Wispa", "Macintosh", "MacGuffin",
 	"Dingwall", "Mor'du", "Maudie", "Young Macintosh", "Young MacGuffin", "Young Dingwall", "Wee Dingwall", "Kelly", "Macdonald", "Billy",
@@ -342,6 +347,70 @@ func _refresh_level_baseline_cache() -> void:
 			baseline_ids = _parse_run_id_list(comparison_curated_run_ids, 2)
 		level_baseline_run_ids_by_level[level_key] = baseline_ids
 
+func _parse_json_object_quiet(raw_text: String) -> Dictionary:
+	var text: String = raw_text.strip_edges()
+	if text == "":
+		return {}
+	var parser := JSON.new()
+	var err: Error = parser.parse(text)
+	if err != OK:
+		return {}
+	var parsed: Variant = parser.data
+	if parsed is Dictionary:
+		return parsed
+	return {}
+
+func _load_stats_rows(stats_file_path: String) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	if stats_file_path == "":
+		return rows
+	if not FileAccess.file_exists(stats_file_path):
+		return rows
+
+	var stats_file: FileAccess = FileAccess.open(stats_file_path, FileAccess.READ)
+	if stats_file == null:
+		return rows
+
+	var raw_text: String = stats_file.get_as_text()
+	var trimmed: String = raw_text.strip_edges()
+	if trimmed == "":
+		return rows
+
+	# Accept canonical JSON documents (array/object) if present.
+	var parser := JSON.new()
+	if parser.parse(trimmed) == OK:
+		var parsed_doc: Variant = parser.data
+		if parsed_doc is Array:
+			for entry in (parsed_doc as Array):
+				if entry is Dictionary:
+					rows.append(entry)
+			return rows
+		if parsed_doc is Dictionary:
+			rows.append(parsed_doc)
+			return rows
+
+	# Fallback for line-delimited JSON and minor formatting issues.
+	var lines: PackedStringArray = raw_text.split("\n", false)
+	for raw_line in lines:
+		var line: String = str(raw_line).strip_edges()
+		if line == "" or line == "[" or line == "]":
+			continue
+		if line.ends_with(","):
+			line = line.substr(0, line.length() - 1).strip_edges()
+		var row: Dictionary = _parse_json_object_quiet(line)
+		if not row.is_empty():
+			rows.append(row)
+			continue
+
+		# Recover concatenated objects on one line, e.g. "}{" from abrupt previous writes.
+		var split_parts: PackedStringArray = line.replace("}{", "}\n{").split("\n", false)
+		for part in split_parts:
+			var candidate: Dictionary = _parse_json_object_quiet(str(part))
+			if not candidate.is_empty():
+				rows.append(candidate)
+
+	return rows
+
 func _refresh_run_history_by_level(stats_file_path: String = "") -> void:
 	recent_run_ids_by_level.clear()
 	last_run_summary_by_level.clear()
@@ -354,22 +423,10 @@ func _refresh_run_history_by_level(stats_file_path: String = "") -> void:
 		effective_stats_path = _resolve_stats_output_path_for_level(current_difficulty_level)
 	if effective_stats_path == "":
 		return
-	if not FileAccess.file_exists(effective_stats_path):
-		return
 
-	var stats_file: FileAccess = FileAccess.open(effective_stats_path, FileAccess.READ)
-	if stats_file == null:
-		return
-
-	var lines: PackedStringArray = stats_file.get_as_text().split("\n", false)
-	for idx in range(lines.size() - 1, -1, -1):
-		var line: String = lines[idx].strip_edges()
-		if line == "":
-			continue
-		var parsed: Variant = JSON.parse_string(line)
-		if not (parsed is Dictionary):
-			continue
-		var row: Dictionary = parsed
+	var rows: Array[Dictionary] = _load_stats_rows(effective_stats_path)
+	for idx in range(rows.size() - 1, -1, -1):
+		var row: Dictionary = rows[idx]
 		if str(row.get("event", "")) != "run_summary":
 			continue
 		var level_name: String = _normalized_level_name(str(row.get("level", "")))
@@ -391,44 +448,72 @@ func _refresh_run_history_by_level(stats_file_path: String = "") -> void:
 		if not last_run_summary_by_level.has(level_name):
 			last_run_summary_by_level[level_name] = row
 
-func _outputs_dir_path() -> String:
-	var project_outputs: String = ProjectSettings.globalize_path("res://outputs")
-	if DirAccess.dir_exists_absolute(project_outputs):
-		return project_outputs
+func _append_existing_output_dir(dirs: Array[String], dir_path: String) -> void:
+	var normalized_path: String = dir_path.strip_edges()
+	if normalized_path == "" or dirs.has(normalized_path):
+		return
+	if DirAccess.dir_exists_absolute(normalized_path):
+		dirs.append(normalized_path)
+
+func _candidate_output_dirs() -> Array[String]:
+	var dirs: Array[String] = []
+	var level_stats_path: String = _resolve_stats_output_path_for_level(current_difficulty_level)
+	if level_stats_path != "":
+		_append_existing_output_dir(dirs, level_stats_path.get_base_dir())
 
 	if active_config_path != "":
-		var active_outputs: String = active_config_path.get_base_dir().path_join("outputs")
-		if DirAccess.dir_exists_absolute(active_outputs):
-			return active_outputs
+		_append_existing_output_dir(dirs, active_config_path.get_base_dir().get_base_dir().path_join("outputs"))
+		_append_existing_output_dir(dirs, active_config_path.get_base_dir().path_join("outputs"))
+
+	var executable_dir: String = OS.get_executable_path().get_base_dir()
+	if executable_dir != "":
+		_append_existing_output_dir(dirs, executable_dir.path_join("outputs"))
+		var app_parent_dir: String = executable_dir.get_base_dir().get_base_dir().get_base_dir()
+		if app_parent_dir != "":
+			_append_existing_output_dir(dirs, app_parent_dir.path_join("outputs"))
 
 	var default_config_abs: String = ProjectSettings.globalize_path(default_config_path)
-	var default_outputs: String = default_config_abs.get_base_dir().get_base_dir().path_join("outputs")
-	if DirAccess.dir_exists_absolute(default_outputs):
-		return default_outputs
+	_append_existing_output_dir(dirs, default_config_abs.get_base_dir().get_base_dir().path_join("outputs"))
+	_append_existing_output_dir(dirs, ProjectSettings.globalize_path("user://outputs"))
+	_append_existing_output_dir(dirs, ProjectSettings.globalize_path("res://outputs"))
+	return dirs
 
-	return project_outputs
+func _outputs_dir_path() -> String:
+	var candidate_dirs: Array[String] = _candidate_output_dirs()
+	if not candidate_dirs.is_empty():
+		return candidate_dirs[0]
+	return ProjectSettings.globalize_path("user://outputs")
+
+func _find_output_file(file_name: String) -> String:
+	for outputs_dir in _candidate_output_dirs():
+		var candidate_path: String = outputs_dir.path_join(file_name)
+		if FileAccess.file_exists(candidate_path):
+			return candidate_path
+	return _outputs_dir_path().path_join(file_name)
 
 func _list_available_exposure_run_ids() -> PackedStringArray:
-	var outputs_dir: String = _outputs_dir_path()
-	var dir: DirAccess = DirAccess.open(outputs_dir)
-	if dir == null:
-		return PackedStringArray()
-
 	var run_ids: Array[String] = []
 	var run_id_regex: RegEx = RegEx.new()
 	run_id_regex.compile("^output_childcare_people_movement_exposure_(id-\\d{4})\\.json$")
 
-	dir.list_dir_begin()
-	while true:
-		var file_name: String = dir.get_next()
-		if file_name == "":
-			break
-		if dir.current_is_dir():
+	for outputs_dir in _candidate_output_dirs():
+		var dir: DirAccess = DirAccess.open(outputs_dir)
+		if dir == null:
 			continue
-		var match: RegExMatch = run_id_regex.search(file_name)
-		if match != null:
-			run_ids.append(match.get_string(1))
-	dir.list_dir_end()
+		dir.list_dir_begin()
+		while true:
+			var file_name: String = dir.get_next()
+			if file_name == "":
+				break
+			if dir.current_is_dir():
+				continue
+			var match: RegExMatch = run_id_regex.search(file_name)
+			if match == null:
+				continue
+			var run_id: String = match.get_string(1)
+			if not run_ids.has(run_id):
+				run_ids.append(run_id)
+		dir.list_dir_end()
 
 	run_ids.sort_custom(Callable(self, "_sort_run_ids_desc"))
 	return PackedStringArray(run_ids)
@@ -584,7 +669,7 @@ func _run_chart_label(idx: int, run_id: String) -> String:
 	return "Run %d: %s" % [idx + 1, details]
 
 func _load_total_exposure_series(run_id: String) -> Array[Dictionary]:
-	var file_path: String = _outputs_dir_path().path_join("output_childcare_people_movement_exposure_%s.json" % run_id)
+	var file_path: String = _find_output_file("output_childcare_people_movement_exposure_%s.json" % run_id)
 	if not FileAccess.file_exists(file_path):
 		return []
 
@@ -622,7 +707,7 @@ func _load_total_exposure_series(run_id: String) -> Array[Dictionary]:
 	return points
 
 func _load_total_cost_series(run_id: String) -> Array[Dictionary]:
-	var file_path: String = _outputs_dir_path().path_join("output_childcare_rooms_%s.json" % run_id)
+	var file_path: String = _find_output_file("output_childcare_rooms_%s.json" % run_id)
 	if not FileAccess.file_exists(file_path):
 		return []
 
@@ -660,7 +745,7 @@ func _load_total_cost_series(run_id: String) -> Array[Dictionary]:
 	return points
 
 func _load_cumulative_alert_series(run_id: String) -> Array[Dictionary]:
-	var file_path: String = _outputs_dir_path().path_join("output_childcare_rooms_%s.json" % run_id)
+	var file_path: String = _find_output_file("output_childcare_rooms_%s.json" % run_id)
 	if not FileAccess.file_exists(file_path):
 		return []
 
@@ -911,6 +996,8 @@ func _hide_game_over() -> void:
 		game_over_layer.visible = false
 
 func _return_to_title_from_run() -> void:
+	var should_auto_restart_autoplay: bool = last_run_started_with_autoplay
+	last_run_started_with_autoplay = false
 	_stop_autoplay_mode()
 	_clear_game_controls_overlay()
 	title_screen.show()
@@ -925,7 +1012,59 @@ func _return_to_title_from_run() -> void:
 	_set_brave_mode(false)
 	_set_health_mode(false)
 	_refresh_title_level_dependent_data()
+	if should_auto_restart_autoplay:
+		_begin_title_autoplay_restart_countdown()
+	else:
+		_cancel_title_autoplay_restart_countdown()
 	_update_room_panel(true)
+
+func _begin_title_autoplay_restart_countdown() -> void:
+	title_autoplay_restart_countdown_active = true
+	title_autoplay_restart_elapsed_s = 0.0
+	_update_title_autoplay_button_label()
+
+func _cancel_title_autoplay_restart_countdown() -> void:
+	title_autoplay_restart_countdown_active = false
+	title_autoplay_restart_elapsed_s = 0.0
+	_update_title_autoplay_button_label()
+
+func _update_title_autoplay_button_label() -> void:
+	if start_autoplay_button == null:
+		return
+	if title_autoplay_restart_countdown_active:
+		var remaining_s: int = int(ceili(TITLE_AUTOPLAY_RESTART_COUNTDOWN_S - title_autoplay_restart_elapsed_s))
+		start_autoplay_button.text = "Start Auto-play (%ds)" % max(0, remaining_s)
+		if start_autoplay_countdown_bar != null:
+			var ratio: float = 0.0
+			if TITLE_AUTOPLAY_RESTART_COUNTDOWN_S > 0.0:
+				ratio = clampf(title_autoplay_restart_elapsed_s / TITLE_AUTOPLAY_RESTART_COUNTDOWN_S, 0.0, 1.0)
+			start_autoplay_countdown_bar.visible = true
+			start_autoplay_countdown_bar.value = ratio * 100.0
+	else:
+		start_autoplay_button.text = "Start Auto-play"
+		if start_autoplay_countdown_bar != null:
+			start_autoplay_countdown_bar.visible = false
+			start_autoplay_countdown_bar.value = 0.0
+
+func _is_title_countdown_cancel_input(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		return key_event.pressed and not key_event.echo
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		return mouse_event.pressed
+	if event is InputEventJoypadButton:
+		var joy_button_event := event as InputEventJoypadButton
+		return joy_button_event.pressed
+	if event is InputEventAction:
+		var action_event := event as InputEventAction
+		return action_event.pressed
+	if event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		return touch_event.pressed
+	if event is InputEventScreenDrag:
+		return true
+	return false
 
 func _on_game_over_continue_pressed() -> void:
 	_return_to_title_from_run()
@@ -1861,28 +2000,16 @@ func _resolve_stats_output_path_from_config(config_path: String) -> String:
 	return stats_output_file
 
 func _read_last_run_summary_row(stats_file_path: String, level_filter: String = "") -> Dictionary:
-	if stats_file_path == "":
-		return {}
-	if not FileAccess.file_exists(stats_file_path):
-		return {}
-
-	var stats_file := FileAccess.open(stats_file_path, FileAccess.READ)
-	if stats_file == null:
-		return {}
-
-	var lines: PackedStringArray = stats_file.get_as_text().split("\n", false)
-	for idx in range(lines.size() - 1, -1, -1):
-		var line: String = lines[idx].strip_edges()
-		if line == "":
+	var rows: Array[Dictionary] = _load_stats_rows(stats_file_path)
+	for idx in range(rows.size() - 1, -1, -1):
+		var row: Dictionary = rows[idx]
+		if str(row.get("event", "")) != "run_summary":
 			continue
-		var parsed = JSON.parse_string(line)
-		if parsed is Dictionary and str(parsed.get("event", "")) == "run_summary":
-			var row: Dictionary = parsed
-			if level_filter != "":
-				var row_level: String = _normalized_level_name(str(row.get("level", "")))
-				if row_level != level_filter:
-					continue
-			return row
+		if level_filter != "":
+			var row_level: String = _normalized_level_name(str(row.get("level", "")))
+			if row_level != level_filter:
+				continue
+		return row
 	return {}
 
 func _refresh_last_run_summary(stats_file_path: String = "") -> void:
@@ -1947,6 +2074,71 @@ func _schedule_title_level_dependent_refresh() -> void:
 func _safe_close_file(file_handle: FileAccess) -> void:
 	if file_handle != null:
 		file_handle.close()
+
+func _ensure_parent_dir_for_file(file_path: String) -> bool:
+	if file_path == "" or file_path.begins_with("res://"):
+		return false
+	var parent_dir: String = file_path.get_base_dir()
+	if parent_dir == "":
+		return false
+	var parent_dir_abs: String = ProjectSettings.globalize_path(parent_dir)
+	if DirAccess.dir_exists_absolute(parent_dir_abs):
+		return true
+	var mk_err: Error = DirAccess.make_dir_recursive_absolute(parent_dir_abs)
+	return mk_err == OK or DirAccess.dir_exists_absolute(parent_dir_abs)
+
+func _open_output_file_with_fallback(file_path: String, label: String, mode: int = FileAccess.WRITE) -> FileAccess:
+	if _ensure_parent_dir_for_file(file_path):
+		var primary_handle: FileAccess = FileAccess.open(file_path, mode)
+		if primary_handle != null:
+			return primary_handle
+	else:
+		var direct_handle: FileAccess = FileAccess.open(file_path, mode)
+		if direct_handle != null:
+			return direct_handle
+
+	var file_name: String = file_path.get_file()
+	if file_name == "":
+		file_name = "%s.json" % label
+	var fallback_path: String = "user://outputs/%s" % file_name
+	_ensure_parent_dir_for_file(fallback_path)
+	var fallback_handle: FileAccess = FileAccess.open(fallback_path, mode)
+	if fallback_handle != null:
+		print("Output path for %s not writable. Falling back to: %s" % [label, ProjectSettings.globalize_path(fallback_path)])
+	return fallback_handle
+
+func _append_newline_if_needed(file_handle: FileAccess) -> void:
+	if file_handle == null:
+		return
+	var file_len: int = file_handle.get_length()
+	if file_len <= 0:
+		return
+	file_handle.seek(file_len - 1)
+	var last_byte: int = file_handle.get_8()
+	if last_byte != 10 and last_byte != 13:
+		file_handle.seek_end()
+		file_handle.store_8(10)
+	file_handle.seek_end()
+
+func _open_stats_output_with_fallback(file_path: String) -> FileAccess:
+	if FileAccess.file_exists(file_path):
+		var existing_handle: FileAccess = _open_output_file_with_fallback(file_path, "stats", FileAccess.READ_WRITE)
+		if existing_handle != null:
+			_append_newline_if_needed(existing_handle)
+		return existing_handle
+	return _open_output_file_with_fallback(file_path, "stats", FileAccess.WRITE)
+
+func _can_write_primary_output_streams() -> bool:
+	return Global.person_save_file != null \
+		and Global.poison_save_file != null \
+		and Global.room_save_file != null \
+		and Global.exposure_save_file != null
+
+func _store_line_if_open(file_handle: FileAccess, line: String, label: String) -> void:
+	if file_handle == null:
+		print("Skipping %s write: output file is not open." % label)
+		return
+	file_handle.store_line(line)
 
 func _archive_run_config() -> void:
 	if active_config_path == "":
@@ -2161,9 +2353,42 @@ func _resolve_object_oid(raw_oid: String) -> String:
 	print("Missing object for schedule OID: ", raw_oid)
 	return raw_oid
 
+func _external_inputs_dirs() -> Array[String]:
+	var dirs: Array[String] = []
+	var candidates: Array[String] = ["inputs"]
+	var executable_dir: String = OS.get_executable_path().get_base_dir()
+	if executable_dir != "":
+		candidates.append(executable_dir.path_join("inputs"))
+		# macOS app bundles are typically <App>.app/Contents/MacOS/<binary>.
+		var app_parent_dir: String = executable_dir.get_base_dir().get_base_dir().get_base_dir()
+		if app_parent_dir != "":
+			candidates.append(app_parent_dir.path_join("inputs"))
+
+	for raw_dir in candidates:
+		var dir_path: String = str(raw_dir).strip_edges()
+		if dir_path == "" or dirs.has(dir_path):
+			continue
+		if DirAccess.dir_exists_absolute(dir_path) or dir_path == "inputs":
+			dirs.append(dir_path)
+	return dirs
+
+func _external_level_config_path(level: String) -> String:
+	if not difficulty_level_map.has(level):
+		level = "Standard"
+	var suffix: String = str(difficulty_level_map[level])
+	var file_name: String = "config_childcare_%s.json" % suffix
+	for inputs_dir in _external_inputs_dirs():
+		var candidate_path: String = String(inputs_dir).path_join(file_name)
+		if FileAccess.file_exists(candidate_path):
+			return candidate_path
+	return ""
+
 func _get_config_path_for_level(level: String) -> String:
 	if not difficulty_level_map.has(level):
 		level = "Standard"
+	var external_path: String = _external_level_config_path(level)
+	if external_path != "":
+		return external_path
 	var suffix: String = difficulty_level_map[level]
 	var base_dir: String = default_config_path.get_base_dir()
 	return base_dir.path_join("config_childcare_%s.json" % suffix)
@@ -2602,6 +2827,8 @@ func _configure_side_panel_button_focus_behavior() -> void:
 func _request_start_autoplay(config_path: String) -> void:
 	if config_path == "":
 		return
+	_cancel_title_autoplay_restart_countdown()
+	last_run_started_with_autoplay = true
 	_set_splash_version_override_from_config(config_path)
 	start_simulation(config_path)
 	_start_autoplay_mode()
@@ -2609,6 +2836,8 @@ func _request_start_autoplay(config_path: String) -> void:
 func _request_start_with_prompt(config_path: String) -> void:
 	if config_path == "":
 		return
+	_cancel_title_autoplay_restart_countdown()
+	last_run_started_with_autoplay = false
 	_set_splash_version_override_from_config(config_path)
 	start_simulation(config_path)
 	_begin_tutorial_sequence()
@@ -4049,16 +4278,11 @@ func start_simulation(file: String):
 
 	Global.sim_clock_s = Global.runtime_start_s
 	Global.prev_abs_event_s = Global.runtime_start_s
-	Global.person_save_file = FileAccess.open(Global.person_output_file_path, FileAccess.WRITE)
-	Global.poison_save_file = FileAccess.open(Global.poison_output_file_path, FileAccess.WRITE)
-	Global.room_save_file = FileAccess.open(Global.room_output_file_path, FileAccess.WRITE)
-	Global.exposure_save_file = FileAccess.open(Global.exposure_output_file_path, FileAccess.WRITE)
-	if FileAccess.file_exists(Global.stats_output_file_path):
-		Global.stats_save_file = FileAccess.open(Global.stats_output_file_path, FileAccess.READ_WRITE)
-		if Global.stats_save_file != null:
-			Global.stats_save_file.seek_end()
-	else:
-		Global.stats_save_file = FileAccess.open(Global.stats_output_file_path, FileAccess.WRITE)
+	Global.person_save_file = _open_output_file_with_fallback(Global.person_output_file_path, "person", FileAccess.WRITE)
+	Global.poison_save_file = _open_output_file_with_fallback(Global.poison_output_file_path, "poison", FileAccess.WRITE)
+	Global.room_save_file = _open_output_file_with_fallback(Global.room_output_file_path, "room", FileAccess.WRITE)
+	Global.exposure_save_file = _open_output_file_with_fallback(Global.exposure_output_file_path, "exposure", FileAccess.WRITE)
+	Global.stats_save_file = _open_stats_output_with_fallback(Global.stats_output_file_path)
 	save_timer.wait_time = Global.save_every_s
 	var session_header_json: String = JSON.stringify({
 		"event": "session_start",
@@ -4067,11 +4291,14 @@ func start_simulation(file: String):
 		"run_id": Global.run_id,
 		"timestamp": Time.get_datetime_string_from_system()
 	})
-	Global.person_save_file.store_line(session_header_json)
-	Global.poison_save_file.store_line(session_header_json)
-	Global.room_save_file.store_line(session_header_json)
-	Global.exposure_save_file.store_line(session_header_json)
-	save_timer.start()
+	_store_line_if_open(Global.person_save_file, session_header_json, "person")
+	_store_line_if_open(Global.poison_save_file, session_header_json, "poison")
+	_store_line_if_open(Global.room_save_file, session_header_json, "room")
+	_store_line_if_open(Global.exposure_save_file, session_header_json, "exposure")
+	if _can_write_primary_output_streams():
+		save_timer.start()
+	else:
+		print("Output streams unavailable; periodic save disabled for this run.")
 	_update_room_panel(true)
 
 func _end_simulation(reason: String = "manual") -> void:
@@ -4109,6 +4336,7 @@ func _on_object_file_selected(file: String):
 	save_objects(file)
 
 func _on_level_button_pressed() -> void:
+	_cancel_title_autoplay_restart_countdown()
 	var levels: Array = difficulty_level_map.keys()
 	levels.sort()
 	var current_idx: int = levels.find(current_difficulty_level)
@@ -4133,14 +4361,17 @@ func _update_level_button_display() -> void:
 		level_label_large.text = current_difficulty_level
 
 func _on_start_simulation_default_button_pressed():
+	_cancel_title_autoplay_restart_countdown()
 	var config_path: String = _get_config_path_for_level(current_difficulty_level)
 	_request_start_with_prompt(config_path)
 
 func _on_start_autoplay_button_pressed() -> void:
+	_cancel_title_autoplay_restart_countdown()
 	var config_path: String = _get_config_path_for_level(current_difficulty_level)
 	_request_start_autoplay(config_path)
 
 func _on_start_simulation_button_pressed():
+	_cancel_title_autoplay_restart_countdown()
 	config_file_dialog.show()
 
 func _on_config_file_selected(file: String):
@@ -4148,6 +4379,7 @@ func _on_config_file_selected(file: String):
 	_request_start_with_prompt(file)
 
 func _on_player_name_input_changed(new_text: String):
+	_cancel_title_autoplay_restart_countdown()
 	Global.player_name = new_text.strip_edges()
 	if player_name_auto_label != null:
 		player_name_auto_label.visible = false
@@ -4220,6 +4452,8 @@ func _write_panel_stats_snapshot(reason: String = "schedule_complete") -> void:
 	Global.stats_save_file.store_line(JSON.stringify(row))
 
 func _on_save_timer_timeout():
+	if not _can_write_primary_output_streams():
+		return
 	print("Saving pending output")
 	for pid in Global.all_persons:
 		Global.all_persons[pid].save_events()
@@ -4324,6 +4558,7 @@ func _ready() -> void:
 		if not game_over_layer.is_connected("continue_requested", continue_callable):
 			game_over_layer.connect("continue_requested", continue_callable)
 	_hide_game_over()
+	_update_title_autoplay_button_label()
 	_update_player_name_labels()
 	_refresh_title_level_dependent_data()
 	_init_tutorial_ui()
@@ -4415,6 +4650,12 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if title_autoplay_restart_countdown_active and not Global.is_simulation_active and title_screen != null and title_screen.visible:
+		if _is_title_countdown_cancel_input(event):
+			_cancel_title_autoplay_restart_countdown()
+			get_viewport().set_input_as_handled()
+			return
+
 	if game_controls_overlay_active:
 		if _is_game_controls_close_input(event):
 			_set_game_controls_overlay(false)
@@ -4889,6 +5130,19 @@ func _update_room_panel(force_update: bool = false) -> void:
 
 
 func _process(_delta: float) -> void:
+	if title_autoplay_restart_countdown_active:
+		if Global.is_simulation_active or title_screen == null or not title_screen.visible:
+			_cancel_title_autoplay_restart_countdown()
+		else:
+			title_autoplay_restart_elapsed_s = minf(title_autoplay_restart_elapsed_s + _delta, TITLE_AUTOPLAY_RESTART_COUNTDOWN_S)
+			_update_title_autoplay_button_label()
+			if title_autoplay_restart_elapsed_s >= TITLE_AUTOPLAY_RESTART_COUNTDOWN_S:
+				title_autoplay_restart_countdown_active = false
+				title_autoplay_restart_elapsed_s = 0.0
+				_update_title_autoplay_button_label()
+				var config_path: String = _get_config_path_for_level(current_difficulty_level)
+				_request_start_autoplay(config_path)
+
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size != last_viewport_size:
 		_update_room_panel_layout()

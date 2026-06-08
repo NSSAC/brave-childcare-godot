@@ -1086,6 +1086,19 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_start_sim_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_start_sim_normal")
 text = "Start with Autoplay on"
 
+[node name="StartAutoplayCountdownBar" type="ProgressBar" parent="TitleScreen/VBoxContainer"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(500, 10)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/outline_size = 0
+theme_override_styles/background = SubResource("StyleBoxFlat_level_pressed")
+theme_override_styles/fill = SubResource("StyleBoxFlat_start_sim_normal")
+show_percentage = false
+max_value = 100.0
+value = 0.0
+
 [node name="PrimarySummaryGap" type="Control" parent="TitleScreen/VBoxContainer"]
 custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
